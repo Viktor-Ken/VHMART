@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+
+# Firebase local cache / deploy artifacts
+.firebase/
+
+# Internal docs (not meant to be public)
+QA_REPORT.md
+MVP-AUDIT.md
+DEPLOYMENT_CHECKLIST.md
+MIGRATION_GUIDE.md
+
+# Editable production config secrets (e.g. .env files)
+.env
+.env.*
+
+# Local tooling
+.vscode/
+*.log
+
+# OS / editor noise
+.DS_Store
+Thumbs.db

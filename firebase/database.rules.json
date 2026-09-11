@@ -1,0 +1,85 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "users": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || auth.token.email === 'admin@vhmart.com')",
+        ".write": "auth != null && auth.uid === $uid && !data.exists()",
+        ".validate": "newData.hasChildren(['name', 'email', 'role', 'active']) && (newData.child('role').val() === 'customer' || newData.child('role').val() === 'vendor') && newData.child('email').val() === auth.token.email"
+      }
+    },
+    "categories": {
+      ".read": "data.child('active').val() === true || (auth != null && auth.token.email === 'admin@vhmart.com')",
+      "$id": {
+        ".write": "auth != null && auth.token.email === 'admin@vhmart.com'"
+      }
+    },
+    "vendors": {
+      ".read": "auth != null && auth.token.email === 'admin@vhmart.com'",
+      "$id": {
+        ".read": "data.child('status').val() === 'ACTIVE' || (auth != null && (auth.token.email === 'admin@vhmart.com' || data.child('ownerUid').val() === auth.uid))",
+        ".write": "auth != null && (auth.token.email === 'admin@vhmart.com' || (!data.exists() && $id === auth.uid && newData.child('ownerUid').val() === auth.uid && newData.child('status').val() === 'ACTIVE') || (data.child('ownerUid').val() === auth.uid && data.child('status').val() === 'ACTIVE' && newData.child('ownerUid').val() === data.child('ownerUid').val() && newData.child('status').val() === 'ACTIVE'))",
+        ".validate": "newData.hasChildren(['ownerUid', 'businessName', 'categoryId', 'status']) && newData.child('ownerUid').val() === $id && (newData.child('status').val() === 'ACTIVE' || newData.child('status').val() === 'SUSPENDED') && (newData.child('categoryId').val() === 'general' || newData.child('categoryId').val() === 'books' || newData.child('categoryId').val() === 'courses' || newData.child('categoryId').val() === 'hospital-wears' || newData.child('categoryId').val() === 'wellness' || newData.child('categoryId').val() === 'hospital-lab-equipment' || newData.child('categoryId').val() === 'health-travel' || newData.child('categoryId').val() === 'fitness' || newData.child('categoryId').val() === 'men-shoes' || newData.child('categoryId').val() === 'women-shoes')"
+      }
+    },
+    "products": {
+      ".read": "(query.orderByChild === 'status' && query.equalTo === 'PUBLISHED') || (auth != null && auth.token.email === 'admin@vhmart.com') || (auth != null && query.orderByChild === 'ownerUid' && query.equalTo === auth.uid)",
+      ".indexOn": [
+        "status",
+        "vendorId",
+        "categoryId",
+        "ownerUid"
+      ],
+      "$id": {
+        ".read": "(data.child('status').val() === 'PUBLISHED' && root.child('vendors').child(data.child('vendorId').val()).child('status').val() === 'ACTIVE') || (auth != null && (auth.token.email === 'admin@vhmart.com' || data.child('ownerUid').val() === auth.uid))",
+        ".write": "auth != null && (auth.token.email === 'admin@vhmart.com' || (!data.exists() && newData.child('ownerUid').val() === auth.uid && newData.child('vendorId').val() === auth.uid && root.child('vendors').child(auth.uid).child('ownerUid').val() === auth.uid && root.child('vendors').child(auth.uid).child('status').val() === 'ACTIVE') || (data.child('ownerUid').val() === auth.uid && root.child('vendors').child(auth.uid).child('status').val() === 'ACTIVE' && (!newData.exists() || (newData.child('ownerUid').val() === data.child('ownerUid').val() && newData.child('vendorId').val() === data.child('vendorId').val() && newData.child('status').val() === data.child('status').val()))))",
+        ".validate": "(!newData.exists() && (auth.token.email === 'admin@vhmart.com' || data.child('ownerUid').val() === auth.uid)) || (newData.hasChildren(['ownerUid', 'vendorId', 'name', 'categoryId', 'status']) && newData.child('ownerUid').val() === newData.child('vendorId').val() && root.child('vendors').child(newData.child('vendorId').val()).child('ownerUid').val() === newData.child('ownerUid').val() && (newData.child('status').val() === 'PUBLISHED' || newData.child('status').val() === 'SUSPENDED' || newData.child('status').val() === 'ARCHIVED') && (newData.child('categoryId').val() === 'general' || newData.child('categoryId').val() === 'books' || newData.child('categoryId').val() === 'courses' || newData.child('categoryId').val() === 'hospital-wears' || newData.child('categoryId').val() === 'wellness' || newData.child('categoryId').val() === 'hospital-lab-equipment' || newData.child('categoryId').val() === 'health-travel' || newData.child('categoryId').val() === 'fitness' || newData.child('categoryId').val() === 'men-shoes' || newData.child('categoryId').val() === 'women-shoes') && (!newData.hasChildren(['price']) || (newData.child('price').isNumber() && newData.child('price').val() >= 0)))"
+      }
+    },
+    "enquiries": {
+      ".read": "auth != null && (auth.token.email === 'admin@vhmart.com' || (query.orderByChild === 'vendorId' && query.equalTo === auth.uid))",
+      ".indexOn": [
+        "customerUid",
+        "vendorId",
+        "status"
+      ],
+      "$id": {
+        ".read": "auth != null && (data.child('customerUid').val() === auth.uid || auth.token.email === 'admin@vhmart.com' || root.child('vendors').child(data.child('vendorId').val()).child('ownerUid').val() === auth.uid)",
+        ".write": "auth != null && ((!data.exists() && newData.child('customerUid').val() === auth.uid && newData.child('status').val() === 'NEW' && root.child('products').child(newData.child('productId').val()).child('vendorId').val() === newData.child('vendorId').val() && root.child('products').child(newData.child('productId').val()).child('status').val() === 'PUBLISHED' && root.child('vendors').child(newData.child('vendorId').val()).child('status').val() === 'ACTIVE') || (root.child('vendors').child(data.child('vendorId').val()).child('ownerUid').val() === auth.uid && newData.child('customerUid').val() === data.child('customerUid').val()) || auth.token.email === 'admin@vhmart.com')",
+        ".validate": "newData.hasChildren(['productId', 'vendorId', 'customerUid', 'message', 'status', 'createdAt']) && newData.child('message').isString() && (newData.child('status').val() === 'NEW' || newData.child('status').val() === 'READ' || newData.child('status').val() === 'RESPONDED' || newData.child('status').val() === 'CLOSED') && root.child('products').child(newData.child('productId').val()).child('vendorId').val() === newData.child('vendorId').val()"
+      }
+    },
+    "favourites": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+    "reports": {
+      ".read": "auth != null && auth.token.email === 'admin@vhmart.com'",
+      "$id": {
+        ".read": "auth != null && auth.token.email === 'admin@vhmart.com'",
+        ".write": "auth != null && (!data.exists() && newData.child('reporterUid').val() === auth.uid || auth.token.email === 'admin@vhmart.com')"
+      }
+    },
+    "audit_logs": {
+      "$id": {
+        ".read": "auth != null && auth.token.email === 'admin@vhmart.com'",
+        ".write": "auth != null && auth.token.email === 'admin@vhmart.com'"
+      }
+    },
+    "vendor_enquiries": {
+      "$vendorId": {
+        ".read": "auth != null && (auth.token.email === 'admin@vhmart.com' || auth.uid === $vendorId)",
+        "$id": {
+          ".write": "auth != null && (auth.token.email === 'admin@vhmart.com' || auth.uid === $vendorId || (!data.exists() && newData.child('customerUid').val() === auth.uid && newData.child('status').val() === 'NEW' && root.child('vendors').child($vendorId).child('status').val() === 'ACTIVE'))"
+        },
+        ".indexOn": [
+          "status",
+          "createdAt"
+        ]
+      }
+    }
+  }
+}

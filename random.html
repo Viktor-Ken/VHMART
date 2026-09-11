@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Discover a fresh random selection of VHMART products.">
+    <title>Random picks | VHMART</title>
+    <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+    <header class="site-header"><nav class="nav" aria-label="Main navigation">
+        <a class="brand" href="index.html">VHMART</a>
+        <div class="nav-links"><a href="marketplace.html">Marketplace</a><a href="categories.html">Categories</a><a href="contact.html">Contact</a><a href="login.html">Sign in</a><a class="nav-link--active" href="random.html" aria-current="page">Random</a></div>
+    </nav></header>
+    <main class="page"><div class="section-heading"><div><p>Fresh from the marketplace</p><h1>Random picks</h1><p>Each reshuffle reveals a different selection of published products from VHMART vendors.</p></div><button id="reshuffle" class="button button--primary" type="button">Reshuffle</button></div><p id="status" class="empty">Loading products...</p><div id="products" class="product-grid"></div></main>
+    <script type="module">
+        import { getPublishedProducts, productCard } from './js/marketplace.js';
+        const grid = document.querySelector('#products'); const status = document.querySelector('#status'); let products = [];
+        function shuffle(items) { return [...items].sort(() => Math.random() - 0.5); }
+        function render() { grid.replaceChildren(); const picks = shuffle(products).slice(0, 8); status.hidden = Boolean(picks.length); status.textContent = products.length ? 'No products are available for this selection.' : 'No published products are available yet.'; picks.forEach((product) => grid.append(productCard(product))); }
+        document.querySelector('#reshuffle').addEventListener('click', render);
+        try { products = await getPublishedProducts(); render(); } catch (error) { status.className = 'error'; status.textContent = 'We could not load products right now. Please try again.'; console.error(error); }
+    </script>
+<script src="js/brand-avatar.js"></script><script src="js/theme.js"></script>
+</body>
+</html>

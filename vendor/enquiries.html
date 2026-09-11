@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Vendor enquiries | VHMART</title><link rel="stylesheet" href="../css/main.css"></head>
+<body><main class="page"><nav class="nav"><a class="brand" href="dashboard.html">VHMART</a><a href="products.html">Products</a><a href="profile.html">Profile</a><button id="logout" type="button">Sign out</button></nav>
+<h1>Enquiries</h1><div id="list"><p class="empty">Loading enquiries...</p></div>
+</main>
+<script type="module">
+import { requireUser, logout } from '../js/auth.js';
+import { database } from '../js/firebase.js';
+import { get, ref, update, query, orderByChild, equalTo } from 'https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js';
+logout(document.querySelector('#logout'));
+const root = document.querySelector('#list');
+function showMessage(text, className = 'empty') { root.replaceChildren(); const el = document.createElement('p'); el.className = className; el.textContent = text; root.append(el); }
+requireUser(async (user, profile) => {
+  if (profile.role !== 'vendor') { location.href = '../index.html'; return; }
+  try {
+    let snapshot = await get(ref(database, `vendor_enquiries/${user.uid}`));
+    if (!snapshot.exists()) {
+      snapshot = await get(query(ref(database, 'enquiries'), orderByChild('vendorId'), equalTo(user.uid)));
+    }
+    const entries = snapshot.exists() ? Object.entries(snapshot.val()).map(([id, item]) => ({ id, ...item })).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)) : [];
+    root.replaceChildren();
+    if (!entries.length) { showMessage('No enquiries yet. Customer enquiries will appear here.'); return; }
+    entries.forEach((item) => {
+      const card = document.createElement('article'); card.className = 'form-panel';
+      const title = document.createElement('h2'); title.textContent = item.customerName || 'Customer enquiry';
+      const product = document.createElement('p'); product.textContent = `Product: ${item.productName || item.productId || 'Not specified'}`;
+      const email = document.createElement('p'); if (item.customerEmail) email.textContent = `Email: ${item.customerEmail}`;
+      const message = document.createElement('p'); message.textContent = item.message || 'No message supplied.';
+      const status = document.createElement('p'); status.textContent = `Status: ${item.status || 'NEW'}`;
+      const button = document.createElement('button'); button.className = 'button button--quiet'; button.type = 'button'; button.textContent = item.status === 'RESPONDED' ? 'Responded' : 'Mark responded'; button.disabled = item.status === 'RESPONDED';
+      button.addEventListener('click', async () => { button.disabled = true; try { const response={ status: 'RESPONDED', updatedAt: Date.now() }; await update(ref(database, `enquiries/${item.id}`), response); await update(ref(database, `vendor_enquiries/${user.uid}/${item.id}`), response); status.textContent = 'Status: RESPONDED'; button.textContent = 'Responded'; } catch (error) { console.error('Enquiry update failed:', error); button.disabled = false; } });
+      card.append(title, product); if (item.customerEmail) card.append(email); card.append(message, status, button); root.append(card);
+    });
+  } catch (error) { console.error('Enquiries load failed:', error); showMessage('We could not load your enquiries right now. Please refresh and try again.', 'error'); }
+}, '../login.html', (error) => { console.error('Vendor authentication failed:', error); showMessage('We could not load your account. Please refresh and try again.', 'error'); });
+</script><script src="../js/brand-avatar.js"></script><script src="../js/theme.js"></script></body></html>

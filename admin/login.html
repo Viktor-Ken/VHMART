@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin login | VHMART</title>
+  <link rel="stylesheet" href="../css/main.css">
+</head>
+<body>
+  <main class="page">
+    <a href="../index.html">Back to VHMART</a>
+    <section class="form-panel">
+      <h1>Admin Login</h1>
+      <p>Sign in with the dedicated VHMART administrator account.</p>
+      <form id="adminLoginForm">
+        <label for="email">Admin email
+          <input id="email" type="email" value="admin@vhmart.com" autocomplete="username" required>
+        </label>
+        <label for="password">Password
+          <input id="password" type="password" autocomplete="current-password" required>
+        </label>
+        <button class="button button--primary" type="submit">Sign in</button>
+        <p id="message" role="status"></p>
+      </form>
+    </section>
+  </main>
+  <script type="module">
+    import { auth } from '../js/firebase.js';
+    import { signInWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/12.10.0/firebase-auth.js';
+    import { ADMIN_EMAIL } from '../js/auth.js';
+
+    const form = document.querySelector('#adminLoginForm');
+    const message = document.querySelector('#message');
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const email = form.email.value.trim().toLowerCase();
+      const button = form.querySelector('button');
+      if (email !== ADMIN_EMAIL) {
+        message.textContent = 'Use the dedicated administrator email.';
+        return;
+      }
+      button.disabled = true;
+      message.textContent = 'Signing in...';
+      try {
+        await signInWithEmailAndPassword(auth, email, form.password.value);
+        location.href = 'dashboard.html';
+      } catch (error) {
+        console.error(error);
+        message.textContent = 'Admin sign-in failed. Check the password.';
+        button.disabled = false;
+      }
+    });
+  </script>
+<script src="../js/brand-avatar.js"></script><script src="../js/theme.js"></script>
+</body>
+</html>
