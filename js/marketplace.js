@@ -37,7 +37,7 @@ async function getPublishedProductsFromDb() {
     const snapshot = await get(query(ref(database, "products"), orderByChild("status"), equalTo("PUBLISHED")));
     if (!snapshot.exists()) return [];
     return Object.entries(snapshot.val()).map(([id, product]) => ({ id, ...product }))
-        .filter((product) => product.status === "PUBLISHED" && product.availability !== "UNAVAILABLE");
+        .filter((product) => product.status === "PUBLISHED" && product.availability !== "UNAVAILABLE" && !product.deletedAt);
 }
 
 export async function getPublishedProducts() {
@@ -60,7 +60,7 @@ export async function getProductById(id) {
     const snapshot = await get(ref(database, `products/${id}`));
     if (!snapshot.exists()) return null;
     const product = snapshot.val();
-    if (product.status !== "PUBLISHED" || product.availability === "UNAVAILABLE") return null;
+    if (product.status !== "PUBLISHED" || product.availability === "UNAVAILABLE" || product.deletedAt) return null;
     return { id, ...product };
 }
 
@@ -81,6 +81,8 @@ export function productCard(product) {
     const price = document.createElement("p"); price.className = "product-price"; price.textContent = formatPrice(product.price) || "Contact vendor for price";
     const vendor = document.createElement("p"); vendor.textContent = text(product.vendorName, "Verified VHMART vendor");
     const status = document.createElement("span"); status.className = "availability"; status.textContent = text(product.availability, "Contact vendor").replaceAll("_", " ");
-    const link = document.createElement("a"); link.className = "button button--quiet"; link.href = `product.html?id=${encodeURIComponent(product.id)}`; link.textContent = "View product";
+    // The static page at /product/<id> is what the sitemap lists and what the
+    // crawlers can read without running any JavaScript.
+    const link = document.createElement("a"); link.className = "button button--quiet"; link.href = `product/${encodeURIComponent(product.id)}`; link.textContent = "View product";
     body.append(title, price, vendor, status, link); article.append(image, body); return article;
 }

@@ -1,1 +1,21 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Browse VHMART categories."><title>Categories | VHMART</title><link rel="stylesheet" href="css/main.css"></head><body><header class="site-header"><nav class="nav"><a class="brand" href="index.html">VHMART</a><a href="marketplace.html">Marketplace</a><a href="login.html">Sign in</a></nav></header><main class="page"><h1>Browse categories</h1><div id="categories" class="category-grid"></div></main><script type="module">import { categories } from './js/marketplace.js';const root=document.querySelector('#categories');categories.forEach((category)=>{const link=document.createElement('a');link.className='category-card';link.href=`marketplace.html?category=${category.id}`;link.style.backgroundImage=`url("${category.image}")`;const title=document.createElement('h2');title.textContent=category.name;link.append(title);root.append(link);});</script><script src="js/brand-avatar.js"></script><script src="js/theme.js"></script></body></html>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="css/main.css">
+
+<!-- seo:start -->
+<title>Product categories | VisuaHealth Market</title>
+<meta name="description" content="Explore VHMART by category: wellness, hospital and lab equipment, hospital wear, fitness, books, courses and more.">
+<link rel="canonical" href="https://vhmart.online/categories">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="VisuaHealth Market">
+<meta property="og:title" content="Product categories | VisuaHealth Market">
+<meta property="og:description" content="Explore VHMART by category: wellness, hospital and lab equipment, hospital wear, fitness, books, courses and more.">
+<meta property="og:url" content="https://vhmart.online/categories">
+<meta property="og:image" content="https://vhmart.online/Visuamall/general/home-removebg-preview.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Product categories | VisuaHealth Market">
+<meta name="twitter:description" content="Explore VHMART by category: wellness, hospital and lab equipment, hospital wear, fitness, books, courses and more.">
+<meta name="twitter:image" content="https://vhmart.online/Visuamall/general/home-removebg-preview.png">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"VisuaHealth Market","url":"https://vhmart.online/","logo":"https://vhmart.online/Visuamall/general/home-removebg-preview.png"}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://vhmart.online/"},{"@type":"ListItem","position":2,"name":"categories","item":"https://vhmart.online/categories"}]}</script>
+<!-- seo:end -->
+</head><body><header class="site-header"><nav class="nav"><a class="brand" href="index.html">VHMART</a><a href="marketplace.html">Marketplace</a><a href="login.html">Sign in</a></nav></header><main class="page"><h1>Browse categories</h1><div id="categories" class="category-grid"></div></main><script type="module">import { categories } from './js/marketplace.js';const root=document.querySelector('#categories');categories.forEach((category)=>{const link=document.createElement('a');link.className='category-card';link.href=`marketplace.html?category=${category.id}`;link.style.backgroundImage=`url("${category.image}")`;const title=document.createElement('h2');title.textContent=category.name;link.append(title);root.append(link);});</script><script src="js/brand-avatar.js"></script><script src="js/theme.js"></script><script src="js/track.js"></script></body></html>
