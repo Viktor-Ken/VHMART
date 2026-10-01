@@ -1,0 +1,34 @@
+# Netlify serves the repository root as-is: the project has no build command and
+# an empty publish directory. That means every file in the folder is a public
+# URL unless it is listed here.
+#
+# firebase.json has an equivalent "hosting.ignore" list, but Netlify does not
+# read firebase.json, so that list was doing nothing. Without this file,
+# /firebase/database.rules.json and /package.json are downloadable from the
+# live site.
+
+# Firebase config and emulator internals
+firebase/**
+.firebaserc
+firebase.json
+
+# Build and test tooling, not part of the site
+scripts/**
+tests/**
+node_modules/**
+.firebase/**
+package.json
+package-lock.json
+playwright.config.js
+
+# Repo metadata
+.git/**
+.github/**
+.gitignore
+.netlifyignore
+README.md
+
+# No page links to it; terms-and-conditions.html is the published version
+*.docx
+
+*.log
