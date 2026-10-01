@@ -1,0 +1,18 @@
+User-agent: *
+Allow: /
+
+# Nothing here is useful in a search result, and several pages read and write
+# the signed-in account. Keeping them out saves crawl budget.
+Disallow: /admin/
+Disallow: /account
+Disallow: /vendor/dashboard
+Disallow: /vendor/add-product
+Disallow: /vendor/edit-product
+Disallow: /vendor/products
+Disallow: /vendor/enquiries
+Disallow: /vendor/profile
+Disallow: /account-deleted
+Disallow: /vendor/pending
+Disallow: /vendor/deleted
+
+Sitemap: https://vhmart.online/sitemap.xml
