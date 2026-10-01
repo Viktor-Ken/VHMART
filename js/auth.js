@@ -2,12 +2,29 @@ import { auth, database } from './firebase.js';
 import { onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/12.10.0/firebase-auth.js';
 import { get, ref } from 'https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js';
 
-// Simple MVP admin access: the admin account is identified by its email.
-// The admin never needs to know or copy a Firebase UID.
+// Admin access has three sources, all of which the database rules honour:
+//   1. an `admin` custom claim, granted with scripts/set-role.js
+//   2. an entry in the `admins` node, granted from the admin Accounts page
+//   3. the bootstrap email below, but only while `admins` is still empty
 export const ADMIN_EMAIL = 'admin@vhmart.com';
 
 export function isAdminEmail(user) {
     return !!user && (user.email || '').toLowerCase() === ADMIN_EMAIL;
+}
+
+// Mirrors the `admins` node write rule in firebase/database.rules.json.
+export async function isAdmin(user, token) {
+    if (!user) return false;
+    if (token && token.claims && token.claims.admin === true) return true;
+    try {
+        const snapshot = await get(ref(database, `admins/${user.uid}`));
+        if (snapshot.exists()) return true;
+        const all = await get(ref(database, 'admins'));
+        if (!all.exists()) return isAdminEmail(user);
+    } catch (error) {
+        console.warn('Could not verify admin access:', error && error.message);
+    }
+    return false;
 }
 
 export function requireUser(onReady, loginPath = '../login.html', onError) {
@@ -19,9 +36,20 @@ export function requireUser(onReady, loginPath = '../login.html', onError) {
             const userSnapshot = await get(ref(database, `users/${user.uid}`));
             const userProfile = userSnapshot.val() || {};
             const token = await user.getIdTokenResult();
-            const role = isAdminEmail(user)
+            const admin = await isAdmin(user, token);
+            const role = admin
                 ? 'admin'
                 : (userProfile.role || token.claims.role || (token.claims.admin === true ? 'admin' : 'customer'));
+
+            // A deleted or suspended account is treated as signed out everywhere.
+            if (role !== 'admin' && (userProfile.deletedAt || userProfile.active === false)) {
+                const page = location.pathname.includes('/admin/') || location.pathname.includes('/vendor/')
+                    ? new URL('account-deleted.html', new URL('../', import.meta.url)).pathname
+                    : new URL('account-deleted.html', import.meta.url).pathname;
+                location.href = page;
+                return;
+            }
+
             let vendorProfile = {};
             if (role === 'vendor') {
                 const vendorSnapshot = await get(ref(database, `vendors/${user.uid}`));
@@ -34,6 +62,9 @@ export function requireUser(onReady, loginPath = '../login.html', onError) {
                 ...userProfile,
                 ...vendorProfile,
                 role,
+                status: vendorProfile.status || userProfile.status || null,
+                declinedReason: vendorProfile.declinedReason || userProfile.declinedReason || '',
+                deletedAt: userProfile.deletedAt || vendorProfile.deletedAt || null,
                 vendorId: token.claims.vendorId || userProfile.vendorId || (role === 'vendor' ? user.uid : undefined)
             });
         } catch (error) {
@@ -45,6 +76,18 @@ export function requireUser(onReady, loginPath = '../login.html', onError) {
             }
         }
     });
+}
+
+// Single entry point for admin pages. Refuses non-admins before any admin data
+// is requested, so a signed-in customer never sees a half-rendered page.
+export function requireAdmin(onReady, loginPath = '../login.html') {
+    requireUser(async (user, profile) => {
+        if (profile.role !== 'admin') {
+            location.href = '../index.html';
+            return;
+        }
+        onReady(user, profile);
+    }, loginPath);
 }
 
 export function logout(button) {

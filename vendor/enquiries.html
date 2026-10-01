@@ -1,6 +1,25 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Vendor enquiries | VHMART</title><link rel="stylesheet" href="../css/main.css"></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="../css/main.css">
+
+<!-- seo:start -->
+<title>Vendor enquiries | VisuaHealth Market</title>
+<meta name="description" content="Customer enquiries sent about your VHMART products.">
+<link rel="canonical" href="https://vhmart.online/vendor/enquiries">
+<meta name="robots" content="noindex,nofollow">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="VisuaHealth Market">
+<meta property="og:title" content="Vendor enquiries | VisuaHealth Market">
+<meta property="og:description" content="Customer enquiries sent about your VHMART products.">
+<meta property="og:url" content="https://vhmart.online/vendor/enquiries">
+<meta property="og:image" content="https://vhmart.online/Visuamall/general/home-removebg-preview.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Vendor enquiries | VisuaHealth Market">
+<meta name="twitter:description" content="Customer enquiries sent about your VHMART products.">
+<meta name="twitter:image" content="https://vhmart.online/Visuamall/general/home-removebg-preview.png">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"VisuaHealth Market","url":"https://vhmart.online/","logo":"https://vhmart.online/Visuamall/general/home-removebg-preview.png"}</script>
+<!-- seo:end -->
+</head>
 <body><main class="page"><nav class="nav"><a class="brand" href="dashboard.html">VHMART</a><a href="products.html">Products</a><a href="profile.html">Profile</a><button id="logout" type="button">Sign out</button></nav>
 <h1>Enquiries</h1><div id="list"><p class="empty">Loading enquiries...</p></div>
 </main>
@@ -13,6 +32,8 @@ const root = document.querySelector('#list');
 function showMessage(text, className = 'empty') { root.replaceChildren(); const el = document.createElement('p'); el.className = className; el.textContent = text; root.append(el); }
 requireUser(async (user, profile) => {
   if (profile.role !== 'vendor') { location.href = '../index.html'; return; }
+    if (profile.deletedAt) { location.href = 'deleted.html'; return; }
+    if (profile.status !== 'ACTIVE') { location.href = 'pending.html'; return; }
   try {
     let snapshot = await get(ref(database, `vendor_enquiries/${user.uid}`));
     if (!snapshot.exists()) {
@@ -34,4 +55,4 @@ requireUser(async (user, profile) => {
     });
   } catch (error) { console.error('Enquiries load failed:', error); showMessage('We could not load your enquiries right now. Please refresh and try again.', 'error'); }
 }, '../login.html', (error) => { console.error('Vendor authentication failed:', error); showMessage('We could not load your account. Please refresh and try again.', 'error'); });
-</script><script src="../js/brand-avatar.js"></script><script src="../js/theme.js"></script></body></html>
+</script><script src="../js/brand-avatar.js"></script><script src="../js/theme.js"></script><script src="../js/track.js"></script></body></html>

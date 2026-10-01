@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="../css/main.css">
+
+<!-- seo:start -->
+<title>Account unavailable | VisuaHealth Market</title>
+<meta name="description" content="This VHMART vendor account is unavailable.">
+<link rel="canonical" href="https://vhmart.online/vendor/deleted">
+<meta name="robots" content="noindex,nofollow">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="VisuaHealth Market">
+<meta property="og:title" content="Account unavailable | VisuaHealth Market">
+<meta property="og:description" content="This VHMART vendor account is unavailable.">
+<meta property="og:url" content="https://vhmart.online/vendor/deleted">
+<meta property="og:image" content="https://vhmart.online/Visuamall/general/home-removebg-preview.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Account unavailable | VisuaHealth Market">
+<meta name="twitter:description" content="This VHMART vendor account is unavailable.">
+<meta name="twitter:image" content="https://vhmart.online/Visuamall/general/home-removebg-preview.png">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"VisuaHealth Market","url":"https://vhmart.online/","logo":"https://vhmart.online/Visuamall/general/home-removebg-preview.png"}</script>
+<!-- seo:end -->
+</head>
+<body><main class="page">
+<nav class="nav"><a class="brand" href="../index.html">VHMART</a><button id="logout" type="button">Sign out</button></nav>
+<section class="form-panel">
+  <h1>Your account is closed</h1>
+  <p>Your VHMART account has been deleted, so your profile, storefront and products no longer show on the site.</p>
+  <p>We keep the record of the account for legal and record-keeping reasons. If you want it back, contact VHMART support and an admin can restore it.</p>
+  <p><a href="../index.html">Back to VHMART</a></p>
+</section>
+</main>
+<script type="module">
+import { auth } from '../js/firebase.js';
+import { signOut } from 'https://www.gstatic.com/firebasejs/12.10.0/firebase-auth.js';
+document.querySelector('#logout')?.addEventListener('click', () => signOut(auth).then(() => { location.href = '../index.html'; }));
+</script><script src="../js/brand-avatar.js"></script><script src="../js/theme.js"></script></body></html>

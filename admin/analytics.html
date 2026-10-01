@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Visitor analytics | VHMART</title><link rel="stylesheet" href="../css/main.css"></head>
+<body><main class="page">
+<p><a href="dashboard.html">← Admin dashboard</a></p>
+<h1>Visitor analytics</h1>
+<div class="button-row" style="margin:16px 0" id="ranges">
+  <button type="button" class="button button--primary" data-days="7">Last 7 days</button>
+  <button type="button" class="button button--quiet" data-days="30">Last 30 days</button>
+  <button type="button" class="button button--quiet" data-days="90">Last 90 days</button>
+</div>
+<div id="totals" class="category-grid"><p class="empty">Loading traffic...</p></div>
+<h2>Daily traffic</h2>
+<div id="chart" class="form-panel"><p class="empty">Loading chart...</p></div>
+<div class="form-panel" style="margin-top:16px"><h2>Top pages</h2><div id="pages"><p class="empty">Loading...</p></div></div>
+</main>
+<script type="module">
+import { requireAdmin } from '../js/auth.js';
+import { database } from '../js/firebase.js';
+import { get, ref } from 'https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js';
+import { recentTraffic } from '../js/analytics.js';
+
+let days = 30;
+
+function card(label, value) {
+  const box = document.createElement('article');
+  box.className = 'category-card';
+  box.style.backgroundImage = 'linear-gradient(135deg,#176b55,#e76f51)';
+  const heading = document.createElement('h3');
+  heading.textContent = `${label}: ${value}`;
+  box.append(heading);
+  return box;
+}
+
+function barChart(series) {
+  const root = document.querySelector('#chart');
+  root.replaceChildren();
+  if (!series.length) { const empty = document.createElement('p'); empty.className = 'empty'; empty.textContent = 'No traffic recorded yet.'; root.append(empty); return; }
+  const peak = series.reduce((max, row) => Math.max(max, row.views), 1);
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'display:flex;align-items:flex-end;gap:3px;height:160px;overflow-x:auto;padding:8px 0';
+  const recent = series.slice(-45);
+  recent.forEach((row) => {
+    const col = document.createElement('div');
+    col.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:4px;min-width:18px;flex:1 0 18px';
+    col.title = `${row.day}: ${row.views} views, ${row.visitors} visitors`;
+    const fill = document.createElement('div');
+    fill.style.cssText = `width:100%;height:${Math.max(4, Math.round((row.views / peak) * 120))}px;background:#176b55;border-radius:3px 3px 0 0`;
+    const caption = document.createElement('span');
+    caption.style.cssText = 'font-size:.6rem;color:#607174';
+    caption.textContent = String(Number(row.day.slice(8, 10)));
+    col.append(fill, caption);
+    wrap.append(col);
+  });
+  root.append(wrap);
+}
+
+function topPages(rows) {
+  const root = document.querySelector('#pages');
+  root.replaceChildren();
+  if (!rows.length) { const empty = document.createElement('p'); empty.className = 'empty'; empty.textContent = 'No page data yet.'; root.append(empty); return; }
+  rows.forEach((row) => {
+    const line = document.createElement('p');
+    line.textContent = `${row.path} — ${row.hits} view${row.hits === 1 ? '' : 's'}`;
+    root.append(line);
+  });
+}
+
+async function load() {
+  const totals = document.querySelector('#totals');
+  totals.textContent = 'Loading traffic...';
+  try {
+    const series = await recentTraffic(days);
+    const totalViews = series.reduce((sum, row) => sum + row.views, 0);
+    const totalVisitors = series.reduce((sum, row) => sum + row.visitors, 0);
+    const todayKey = new Date().toISOString().slice(0, 10);
+    const today = series.find((row) => row.day === todayKey) || { views: 0, visitors: 0 };
+    totals.replaceChildren(
+      card('Visitors today', today.visitors),
+      card('Page views today', today.views),
+      card(`Unique visitors (${days} days)`, totalVisitors),
+      card(`Page views (${days} days)`, totalViews)
+    );
+    barChart(series);
+
+    const snapshot = await get(ref(database, 'analytics/page_views'));
+    const counts = new Map();
+    if (snapshot.exists()) {
+      snapshot.forEach((value) => {
+        const path = value.child('path').val() || '/';
+        counts.set(path, (counts.get(path) || 0) + 1);
+      });
+    }
+    topPages(Array.from(counts.entries()).map(([path, hits]) => ({ path, hits })).sort((a, b) => b.hits - a.hits).slice(0, 10));
+  } catch (error) {
+    console.error(error);
+    totals.textContent = 'Could not load traffic. Please refresh and try again.';
+    barChart([]);
+  }
+}
+
+document.querySelectorAll('[data-days]').forEach((el) => {
+  el.addEventListener('click', () => {
+    days = Number(el.dataset.days);
+    document.querySelectorAll('[data-days]').forEach((other) => {
+      other.className = 'button ' + (other === el ? 'button--primary' : 'button--quiet');
+    });
+    load();
+  });
+});
+
+requireAdmin(async (user, profile) => {load();
+}, 'login.html', () => { document.querySelector('#totals').textContent = 'Could not load traffic.'; });
+</script><script src="../js/brand-avatar.js"></script><script src="../js/theme.js"></script><script src="../js/track.js"></script></body></html>

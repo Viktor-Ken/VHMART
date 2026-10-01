@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Accounts | VHMART</title><link rel="stylesheet" href="../css/main.css"></head>
+<body><main class="page">
+<p><a href="dashboard.html">← Admin dashboard</a></p>
+<h1>Accounts</h1>
+<p>Deleting an account disables it and hides it from the site. The record is kept so you can pull it up for legal or audit reasons, and you can restore it later.</p>
+<div class="button-row" style="margin:16px 0">
+  <button type="button" class="button button--primary" data-filter="active">Active</button>
+  <button type="button" class="button button--quiet" data-filter="deleted">Deleted</button>
+  <button type="button" class="button button--quiet" data-filter="admins">Admin access</button>
+</div>
+<div id="list"><p class="empty">Loading accounts...</p></div>
+</main>
+<script type="module">
+import { requireAdmin } from '../js/auth.js';
+import { database } from '../js/firebase.js';
+import { push, get, ref, update, serverTimestamp, query, orderByChild, equalTo } from 'https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js';
+
+let currentFilter = 'active';
+
+requireAdmin(async (user, profile) => {const list = document.querySelector('#list');
+
+  async function log(action, target, detail) {
+    await update(push(ref(database, 'audit_logs')), { actor: user.uid, action, target, detail: detail || '', timestamp: serverTimestamp() });
+  }
+
+  function button(label, className, handler) {
+    const el = document.createElement('button');
+    el.type = 'button';
+    el.className = 'button ' + className;
+    el.textContent = label;
+    el.addEventListener('click', handler);
+    return el;
+  }
+
+  function label(value) {
+    const card = document.createElement('article');
+    card.className = 'form-panel';
+    const heading = document.createElement('h2');
+    heading.textContent = value;
+    card.append(heading);
+    return card;
+  }
+
+  // Admin access is granted by writing to the `admins` node, which the database
+  // rules only allow an existing admin to write. Claim-based admins (granted
+  // with scripts/set-role.js) are listed too, but cannot be edited here.
+  async function loadAdmins() {
+    list.replaceChildren();
+    const loading = document.createElement('p');
+    loading.className = 'empty';
+    loading.textContent = 'Loading admin access...';
+    list.append(loading);
+
+    const [adminsSnapshot, usersSnapshot, token] = await Promise.all([
+      get(ref(database, 'admins')),
+      get(ref(database, 'users')),
+      user.getIdTokenResult()
+    ]);
+
+    const granted = adminsSnapshot.exists() ? Object.entries(adminsSnapshot.val()) : [];
+    // The signed-in admin may hold a custom claim instead of a list entry, so
+    // include them explicitly rather than relying on the users role column.
+    const claimAdmins = token.claims.admin === true
+      ? [[user.uid, { email: user.email || user.uid, grantedAt: null, viaClaim: true }]]
+      : [];
+
+    list.replaceChildren();
+    const intro = document.createElement('p');
+    intro.textContent = 'Anyone listed here can open the admin pages: approve vendors, moderate products, view analytics and manage accounts. Grant admin only to people you trust with the whole site.';
+    list.append(intro);
+
+    if (!granted.length && !claimAdmins.length) {
+      const empty = document.createElement('p');
+      empty.className = 'empty';
+      empty.textContent = 'No admins have been granted access yet.';
+      list.append(empty);
+    }
+
+    const seen = new Set();
+    for (const [id, entry] of granted) {
+      seen.add(id);
+      const card = document.createElement('article');
+      card.className = 'form-panel';
+      const heading = document.createElement('h2');
+      heading.textContent = entry.email || id;
+      const meta = document.createElement('p');
+      const when = entry.grantedAt ? new Date(entry.grantedAt).toLocaleString() : 'unknown date';
+      meta.textContent = (id === user.uid ? 'You' : '') + ' - ' + (entry.viaClaim ? 'admin via custom claim' : 'granted ' + when);
+      const actions = document.createElement('div');
+      actions.className = 'button-row';
+      if (id !== user.uid && !entry.viaClaim) {
+        actions.append(button('Remove admin access', 'button--danger', async (event) => {
+          if (!window.confirm('Remove admin access for ' + (entry.email || id) + '?')) return;
+          event.target.disabled = true;
+          try {
+            await update(ref(database, `admins/${id}`), null);
+            await log('revoke_admin', id, entry.email || '');
+            await loadAdmins();
+          } catch (error) {
+            console.error(error);
+            event.target.disabled = false;
+            window.alert('Could not remove admin access.');
+          }
+        }));
+      } else {
+        const note = document.createElement('p');
+        note.textContent = 'This is you. You cannot remove your own access here.';
+        actions.append(note);
+      }
+      card.append(heading, meta, actions);
+      list.append(card);
+    }
+
+    for (const [id, account] of claimAdmins) {
+      if (seen.has(id)) continue;
+      const card = document.createElement('article');
+      card.className = 'form-panel';
+      const heading = document.createElement('h2');
+      heading.textContent = account.email || id;
+      const meta = document.createElement('p');
+      meta.textContent = 'Admin via custom claim (scripts/set-role.js).';
+      card.append(heading, meta);
+      list.append(card);
+    }
+
+    if (token.claims.admin === true) {
+      const note = document.createElement('p');
+      note.className = 'empty';
+      note.textContent = 'Your own admin access comes from a custom claim granted with scripts/set-role.js.';
+      list.append(note);
+    }
+  }
+
+  async function load() {
+    if (currentFilter === 'admins') return loadAdmins();
+    list.replaceChildren();
+    const loading = document.createElement('p');
+    loading.className = 'empty';
+    loading.textContent = 'Loading accounts...';
+    list.append(loading);
+    try {
+      const snapshot = await get(ref(database, 'users'));
+      list.replaceChildren();
+      if (!snapshot.exists()) { list.textContent = 'No accounts found.'; return; }
+      const entries = Object.entries(snapshot.val()).filter(([, account]) => {
+        const deleted = Boolean(account.deletedAt);
+        if (account.role === 'admin') return false;
+        return currentFilter === 'deleted' ? deleted : !deleted;
+      });
+      if (!entries.length) {
+        const empty = document.createElement('p');
+        empty.className = 'empty';
+        empty.textContent = currentFilter === 'deleted' ? 'No deleted accounts.' : 'No accounts in this view.';
+        list.append(empty);
+        return;
+      }
+      entries.forEach(([id, account]) => {
+        const card = document.createElement('article');
+        card.className = 'form-panel';
+        const heading = document.createElement('h2');
+        heading.textContent = account.name || account.email || 'Account';
+        const details = document.createElement('p');
+        details.textContent = `${account.email || ''} · ${account.role || 'customer'}${account.active === false && !account.deletedAt ? ' · suspended' : ''}`;
+        card.append(heading, details);
+        if (account.deletedAt) {
+          const note = document.createElement('p');
+          note.textContent = `Deleted${account.deletedBy ? '' : ''}. Record retained.`;
+          card.append(note);
+        }
+        const actions = document.createElement('div');
+        actions.className = 'button-row';
+        if (!account.deletedAt && account.active !== false) {
+          actions.append(button('Grant admin access', 'button--quiet', async (event) => {
+            if (!window.confirm('Grant full admin access to ' + (account.email || account.name || id) + '?\n\nThey will be able to approve vendors, moderate products, view analytics and manage every account. You can remove this access again from the Admin access tab.')) return;
+            event.target.disabled = true;
+            try {
+              await update(ref(database, `admins/${id}`), { email: account.email || '', grantedAt: Date.now() });
+              await log('grant_admin', id, account.email || '');
+              load();
+            } catch (error) {
+              console.error(error);
+              alert('Could not grant admin access.');
+              event.target.disabled = false;
+            }
+          }));
+        }
+        if (account.deletedAt) {
+          actions.append(button('Restore', 'button--primary', async (event) => {
+            event.target.disabled = true;
+            try {
+              const updates = [];
+              updates.push([`users/${id}`, { active: true, deletedAt: null, deletedBy: '', updatedAt: serverTimestamp() }]);
+              const vendorSnapshot = await get(ref(database, `vendors/${id}`));
+              if (vendorSnapshot.exists() && vendorSnapshot.val().deletedAt) {
+                updates.push([`vendors/${id}`, { deletedAt: null, deletedBy: '', updatedAt: serverTimestamp() }]);
+              }
+              const productSnapshot = await get(query(ref(database, 'products'), orderByChild('ownerUid'), equalTo(id)));
+              if (productSnapshot.exists()) {
+                Object.entries(productSnapshot.val()).forEach(([productId, product]) => {
+                  if (product.deletedAt) updates.push([`products/${productId}`, { deletedAt: null, deletedBy: '', updatedAt: serverTimestamp() }]);
+                });
+              }
+              // Rules cascade downwards only, so a root-scoped multi-path update
+              // is denied. Each path is written separately instead.
+              for (const [path, value] of updates) {
+                await update(ref(database, path), value);
+              }
+              await log('restore_user', id);
+              load();
+            } catch (error) { console.error(error); alert('Could not restore this account.'); }
+          }));
+        } else {
+          if (account.active !== false) {
+            actions.append(button('Suspend', 'button--quiet', async (event) => {
+              event.target.disabled = true;
+              try {
+                await update(ref(database, `users/${id}`), { active: false, updatedAt: serverTimestamp() });
+                await log('suspend_user', id);
+                load();
+              } catch (error) { console.error(error); alert('Could not suspend this account.'); }
+            }));
+          } else {
+            actions.append(button('Reactivate', 'button--primary', async (event) => {
+              event.target.disabled = true;
+              try {
+                await update(ref(database, `users/${id}`), { active: true, updatedAt: serverTimestamp() });
+                await log('reactivate_user', id);
+                load();
+              } catch (error) { console.error(error); alert('Could not reactivate this account.'); }
+            }));
+          }
+          actions.append(button('Delete', 'button--danger', async (event) => {
+            const reason = window.prompt('Reason for deleting this account (kept on record)', 'Deleted by admin');
+            if (reason === null) return;
+            event.target.disabled = true;
+            try {
+              const updates = [];
+              updates.push([`users/${id}`, { active: false, deletedAt: serverTimestamp(), deletedBy: user.uid, deletedReason: reason, updatedAt: serverTimestamp() }]);
+              const vendorSnapshot = await get(ref(database, `vendors/${id}`));
+              if (vendorSnapshot.exists()) updates.push([`vendors/${id}`, { status: 'SUSPENDED', deletedAt: serverTimestamp(), deletedBy: user.uid, updatedAt: serverTimestamp() }]);
+              const productSnapshot = await get(query(ref(database, 'products'), orderByChild('ownerUid'), equalTo(id)));
+              if (productSnapshot.exists()) {
+                Object.entries(productSnapshot.val()).forEach(([productId, product]) => {
+                  if (!product.deletedAt) updates.push([`products/${productId}`, { status: 'SUSPENDED', deletedAt: serverTimestamp(), deletedBy: user.uid, updatedAt: serverTimestamp() }]);
+                });
+              }
+              // The account is disabled first so a partial failure always leaves
+              // the account with less access, never more.
+              for (const [path, value] of updates) {
+                await update(ref(database, path), value);
+              }
+              await log('delete_user', id, reason);
+              load();
+            } catch (error) { console.error(error); alert('Could not delete this account.'); }
+          }));
+        }
+        card.append(actions);
+        list.append(card);
+      });
+    } catch (error) {
+      console.error(error);
+      list.textContent = 'Could not load accounts. Please refresh and try again.';
+    }
+  }
+
+  document.querySelectorAll('[data-filter]').forEach((el) => {
+    el.addEventListener('click', () => {
+      currentFilter = el.dataset.filter;
+      document.querySelectorAll('[data-filter]').forEach((other) => {
+        other.className = 'button ' + (other === el ? 'button--primary' : 'button--quiet');
+      });
+      load();
+    });
+  });
+
+  load();
+});
+</script><script src="../js/brand-avatar.js"></script><script src="../js/theme.js"></script><script src="../js/track.js"></script></body></html>

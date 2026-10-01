@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="css/main.css">
+
+<!-- seo:start -->
+<title>My account | VisuaHealth Market</title>
+<meta name="description" content="Manage your VHMART profile, products and enquiries.">
+<link rel="canonical" href="https://vhmart.online/account">
+<meta name="robots" content="noindex,nofollow">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="VisuaHealth Market">
+<meta property="og:title" content="My account | VisuaHealth Market">
+<meta property="og:description" content="Manage your VHMART profile, products and enquiries.">
+<meta property="og:url" content="https://vhmart.online/account">
+<meta property="og:image" content="https://vhmart.online/Visuamall/general/home-removebg-preview.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="My account | VisuaHealth Market">
+<meta name="twitter:description" content="Manage your VHMART profile, products and enquiries.">
+<meta name="twitter:image" content="https://vhmart.online/Visuamall/general/home-removebg-preview.png">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"VisuaHealth Market","url":"https://vhmart.online/","logo":"https://vhmart.online/Visuamall/general/home-removebg-preview.png"}</script>
+<!-- seo:end -->
+</head>
+<body><main class="page">
+<nav class="nav"><a class="brand" href="index.html">VHMART</a><a href="marketplace.html">Marketplace</a><button id="logout" type="button">Sign out</button></nav>
+<h1>My account</h1>
+<section class="form-panel" id="details"><p class="empty">Loading your account...</p></section>
+<section class="form-panel">
+  <h2>Delete this account</h2>
+  <p>Deleting your account signs you out and hides your profile and saved products. The record is kept so VHMART can meet legal and record-keeping duties, and an admin can restore it later.</p>
+  <button id="deleteAccount" class="button button--danger" type="button">Delete my account</button>
+  <p id="deleteMessage" role="status"></p>
+</section>
+</main>
+<script type="module">
+import { requireUser, logout } from './js/auth.js';
+import { auth, database } from './js/firebase.js';
+import { push, get, ref, set, update, serverTimestamp, query, orderByChild, equalTo } from 'https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js';
+
+logout(document.querySelector('#logout'));
+const details = document.querySelector('#details');
+const deleteMessage = document.querySelector('#deleteMessage');
+
+requireUser(async (user, profile) => {
+  if (profile.deletedAt || profile.active === false) { location.href = 'account-deleted.html'; return; }
+  details.replaceChildren();
+  const heading = document.createElement('h2');
+  heading.textContent = profile.name || profile.email || 'Your account';
+  const email = document.createElement('p');
+  email.textContent = 'Email: ' + (profile.email || user.email || '');
+  const role = document.createElement('p');
+  role.textContent = 'Account type: ' + (profile.role === 'vendor' ? 'Vendor' : 'Customer');
+  const joined = document.createElement('p');
+  joined.textContent = 'Joined: ' + (profile.createdAt ? new Date(profile.createdAt).toLocaleDateString() : 'recently');
+  details.append(heading, email, role, joined);
+
+  document.querySelector('#deleteAccount').addEventListener('click', async (event) => {
+    const ok = window.confirm('Delete your VHMART account? You will be signed out and your profile will no longer appear on the site.');
+    if (!ok) return;
+    event.target.disabled = true;
+    deleteMessage.textContent = 'Deleting your account...';
+    try {
+const updates = [];
+      updates.push([`users/${user.uid}`, { active: false, deletedAt: serverTimestamp(), deletedBy: user.uid, updatedAt: serverTimestamp() }]);
+      const vendorSnapshot = await get(ref(database, `vendors/${user.uid}`));
+      if (vendorSnapshot.exists()) {
+        updates.push([`vendors/${user.uid}`, { status: 'SUSPENDED', deletedAt: serverTimestamp(), deletedBy: user.uid, updatedAt: serverTimestamp() }]);
+      }
+      const productSnapshot = await get(query(ref(database, 'products'), orderByChild('ownerUid'), equalTo(user.uid)));
+      if (productSnapshot.exists()) {
+        Object.entries(productSnapshot.val()).forEach(([productId, product]) => {
+          if (!product.deletedAt) updates.push([`products/${productId}`, { status: 'SUSPENDED', deletedAt: serverTimestamp(), deletedBy: user.uid, updatedAt: serverTimestamp() }]);
+        });
+      }
+      // Realtime Database rules only cascade downwards, so a multi-path update
+      // scoped at the root is denied even when each child path is writable.
+      // Each path is written separately, and the account itself goes first so a
+      // partial failure always leaves the account with less access.
+      for (const [path, value] of updates) {
+        await update(ref(database, path), value);
+      }
+      try {
+        await update(push(ref(database, 'audit_logs')), { actor: user.uid, action: 'self_delete_user', target: user.uid, detail: 'Deleted by the account holder', timestamp: serverTimestamp() });
+      } catch (auditError) {
+        // The deletion has already taken effect; a missing audit entry must not
+        // be reported as a failed deletion.
+        console.warn('Self-delete audit entry not written:', auditError && auditError.message);
+      }
+      location.href = 'account-deleted.html';
+    } catch (error) {
+      console.error(error);
+      deleteMessage.textContent = 'We could not delete your account. Please try again.';
+      event.target.disabled = false;
+    }
+  });
+}, 'login.html', () => { details.textContent = 'We could not load your account. Please refresh and try again.'; });
+</script><script src="js/brand-avatar.js"></script><script src="js/theme.js"></script><script src="js/track.js"></script></body></html>

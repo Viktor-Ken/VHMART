@@ -18,7 +18,7 @@ async function fetchPublishedProducts() {
   if (!data || typeof data !== 'object') return [];
   return Object.entries(data)
     .map(([id, product]) => ({ id, ...product }))
-    .filter((product) => product && product.status === 'PUBLISHED' && product.availability !== 'UNAVAILABLE');
+    .filter((product) => product && product.status === 'PUBLISHED' && product.availability !== 'UNAVAILABLE' && !product.deletedAt);
 }
 
 try {

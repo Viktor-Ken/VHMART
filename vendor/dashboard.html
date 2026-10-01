@@ -1,6 +1,25 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Vendor dashboard | VHMART</title><link rel="stylesheet" href="../css/main.css"></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="../css/main.css">
+
+<!-- seo:start -->
+<title>Vendor dashboard | VisuaHealth Market</title>
+<meta name="description" content="Manage your VHMART vendor listing, products and enquiries.">
+<link rel="canonical" href="https://vhmart.online/vendor/dashboard">
+<meta name="robots" content="noindex,nofollow">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="VisuaHealth Market">
+<meta property="og:title" content="Vendor dashboard | VisuaHealth Market">
+<meta property="og:description" content="Manage your VHMART vendor listing, products and enquiries.">
+<meta property="og:url" content="https://vhmart.online/vendor/dashboard">
+<meta property="og:image" content="https://vhmart.online/Visuamall/general/home-removebg-preview.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Vendor dashboard | VisuaHealth Market">
+<meta name="twitter:description" content="Manage your VHMART vendor listing, products and enquiries.">
+<meta name="twitter:image" content="https://vhmart.online/Visuamall/general/home-removebg-preview.png">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"VisuaHealth Market","url":"https://vhmart.online/","logo":"https://vhmart.online/Visuamall/general/home-removebg-preview.png"}</script>
+<!-- seo:end -->
+</head>
 <body><main class="page">
 <nav class="nav"><a class="brand" href="../index.html">VHMART</a><a href="products.html">Products</a><a href="enquiries.html">Enquiries</a><a href="profile.html">Profile</a><button id="logout" type="button">Sign out</button></nav>
 <h1>Vendor dashboard</h1>
@@ -101,6 +120,8 @@ function renderEnquiries(enquiries) {
 requireUser(async (user, profile) => {
   if (profile.role !== 'vendor') { location.href = '../index.html'; return; }
   try {
+    if (profile.deletedAt) { location.href = 'deleted.html'; return; }
+    if (profile.status !== 'ACTIVE') { location.href = 'pending.html'; return; }
     const products = await ownedProducts(user.uid);
     let enquirySnapshot = await get(ref(database, `vendor_enquiries/${user.uid}`));
     if (!enquirySnapshot.exists()) {
@@ -120,4 +141,4 @@ requireUser(async (user, profile) => {
     message.textContent = 'Dashboard data could not be loaded.';
   }
 }, '../login.html', (error) => { console.error('Vendor authentication failed:', error); statsRoot.innerHTML = '<p class="error">We could not load your account. Please refresh and try again.</p>'; showError(productsRoot, 'Your products could not be loaded.'); showError(enquiriesRoot, 'Your enquiries could not be loaded.'); message.textContent = 'Your account could not be loaded.'; });
-</script><script src="../js/brand-avatar.js"></script><script src="../js/theme.js"></script></body></html>
+</script><script src="../js/brand-avatar.js"></script><script src="../js/theme.js"></script><script src="../js/track.js"></script></body></html>
