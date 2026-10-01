@@ -341,6 +341,29 @@ test('the homepage is counted and the tracker resolves from nested pages', () =>
   const track = read('js/track.js');
   assert.match(track, /document\.currentScript\.src/, 'tracker must resolve analytics.js relative to itself');
   assert.doesNotMatch(track, /import\('\.\/analytics\.js'\)/, 'a bare relative import breaks under /admin/ and /vendor/');
-  assert.match(read('admin/analytics.html'), /analytics\/page_views/, 'admin must read the analytics-scoped node');
-  assert.doesNotMatch(read('admin/analytics.html'), /ref\(database, 'page_views'\)/, 'admin must not read an unscoped node');
-});
+    assert.match(read('admin/analytics.html'), /analytics\/page_views/, 'admin must read the analytics-scoped node');
+    assert.doesNotMatch(read('admin/analytics.html'), /ref\(database, 'page_views'\)/, 'admin must not read an unscoped node');
+  });
+
+  test('the SEO head injection is idempotent', () => {
+    // inject() used to delete its own marker block but leave the newlines
+    // around it, so every run pushed one more blank line in front of
+    // <!-- seo:start --> and the files grew forever. The drift is invisible in
+    // a single run and only shows up when you regenerate twice.
+    const pages = ['index.html', 'marketplace.html', 'categories.html', 'contact.html',
+      'vendor.html', 'random.html', 'terms-and-conditions.html', 'login.html',
+      'register.html', 'account.html', 'account-deleted.html',
+      'vendor/pending.html', 'vendor/deleted.html', 'vendor/dashboard.html',
+      'vendor/products.html', 'vendor/add-product.html', 'vendor/edit-product.html',
+      'vendor/enquiries.html', 'vendor/profile.html'];
+    for (const page of pages) {
+      const source = read(page);
+      assert.equal(count(source, '<!-- seo:start -->'), 1, `${page} must have exactly one start marker`);
+      assert.equal(count(source, '<!-- seo:end -->'), 1, `${page} must have exactly one end marker`);
+      assert.doesNotMatch(source, /(\r?\n){2,}<!-- seo:start -->/,
+        `${page} has accumulated blank lines before the marker: a regeneration is not idempotent`);
+    }
+    const injector = read('scripts/seo-heads.js');
+    assert.match(injector, /replace\(\/\\s\+\$\/, ''\)/,
+      'inject() must trim the whitespace left behind when it removes the previous block');
+  });

@@ -229,7 +229,11 @@ function inject(html, block) {
   const cleaned = stripOwned(withoutPrevious);
   const headEnd = cleaned.indexOf('</head>');
   if (headEnd === -1) throw new Error('no </head> found');
-  return `${cleaned.slice(0, headEnd)}${block}\n${cleaned.slice(headEnd)}`;
+  // Removing the previous block leaves the newlines that surrounded it, and
+  // those accumulate: without this, every run pushes one more blank line in
+  // front of the marker and the files grow forever.
+  const before = cleaned.slice(0, headEnd).replace(/\s+$/, '');
+  return `${before}\n${block}\n${cleaned.slice(headEnd)}`;
 }
 
 let changed = 0;
