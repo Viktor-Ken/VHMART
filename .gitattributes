@@ -1,0 +1,28 @@
+# Keep the generated SEO artefacts byte-identical to what the build writes.
+#
+# scripts/build-seo.js writes LF. With core.autocrlf=true (the Windows default)
+# git checked these files out as CRLF, so after `npm run build:seo` git reported
+# products.json and sitemap.xml as modified while `git diff` showed nothing: the
+# blobs matched once line endings were normalised, but the worktree copy did not.
+# That makes it impossible to tell a real change from an untouched build.
+#
+# This is scoped to just the files the build rewrites. A repo-wide `* text=auto
+# eol=lf` would be more consistent, but renormalising every tracked file turns
+# this fix into a 16-file line-ending diff that hides the actual change.
+products.json text eol=lf
+sitemap.xml text eol=lf
+robots.txt text eol=lf
+product/** text eol=lf
+
+# Binary assets must never be touched by line-ending filters.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.avif binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.pdf binary
+*.docx binary

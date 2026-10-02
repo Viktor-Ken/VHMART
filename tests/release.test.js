@@ -368,6 +368,41 @@ test('the homepage is counted and the tracker resolves from nested pages', () =>
       'inject() must trim the whitespace left behind when it removes the previous block');
   });
 
+  test('the SEO build does not dirty the working tree when nothing changed', () => {
+    // build-seo.js used to rewrite products.json with a fresh wall-clock
+    // generatedAt and stamp every category sitemap entry with today's date, so
+    // `npm run build:seo` always left modified files behind. That makes a CI
+    // build look dirty on every run and buries real changes in noise.
+    const build = read('scripts/build-seo.js');
+
+    assert.match(build, /async function writeIfChanged\(/,
+      'output must be written only when the content actually differs');
+    assert.match(build, /current\.equals\(next\)/,
+      'writeIfChanged must compare bytes before writing');
+
+    // The stamp has to survive when the catalogue is untouched.
+    assert.match(build, /Catalogue unchanged: keeping the existing generatedAt/,
+      'an unchanged catalogue must keep its generatedAt stamp');
+    assert.match(build, /previousBody === serialisedBody/,
+      'generatedAt must be reused only when the product data is identical');
+
+    // Category pages must be dated from their products, not from the clock.
+    // Asserting the helper exists is not enough: it has to be the value the
+    // category entry actually receives, otherwise the definition can sit there
+    // unused while every entry is still stamped with the build date.
+    assert.match(build, /function lastmodFrom\(/,
+      'lastmod must be derived from product data');
+    assert.match(build, /lastmod:\s*lastmodFrom\(products,\s*\(product\)\s*=>\s*product\.categoryId === categoryId,\s*today\)/,
+      'a category entry must take its lastmod from its newest product, not from today');
+
+    // Line endings must not manufacture a phantom diff.
+    const attributes = read('.gitattributes');
+    assert.match(attributes, /products\.json text eol=lf/,
+      'products.json must be checked out with the endings the build writes');
+    assert.match(attributes, /sitemap\.xml text eol=lf/,
+      'sitemap.xml must be checked out with the endings the build writes');
+  });
+
   test('every password field can be shown and hidden', () => {
     // The eye control was missing from sign-in. Each page with a password input
     // needs the wrapper, a toggle pointing at the field id, the script, and CSS.

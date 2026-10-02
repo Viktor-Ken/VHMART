@@ -34,6 +34,40 @@ const escapeXml = (value) => String(value).replace(/[<>&'"]/g, (character) => (
   { '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' }[character]
 ));
 
+// Writes only when the content actually differs. Every run of this script used
+// to rewrite its output unconditionally, so `npm run build:seo` left a modified
+// working tree even when the database had not changed. That is noise in review,
+// and it makes a CI build look dirty every time it runs.
+//
+// Returns true when the file was written.
+async function writeIfChanged(filePath, contents) {
+  const next = Buffer.isBuffer(contents) ? contents : Buffer.from(contents, 'utf8');
+  try {
+    const current = await readFile(filePath);
+    if (current.equals(next)) return false;
+  } catch {
+    // No file yet, or it cannot be read: fall through and write it.
+  }
+  await mkdir(path.dirname(filePath), { recursive: true });
+  await writeFile(filePath, next);
+  return true;
+}
+
+// Dated from the data rather than from the clock. Stamping "today" made every
+// run produce a different sitemap even when nothing had changed, and for a
+// category page it was never accurate: the listing changes when one of its
+// products changes, not on whatever day a build happens to run.
+function lastmodFrom(products, predicate, fallback) {
+  let latest = null;
+  for (const product of products) {
+    if (!predicate(product) || !product.updatedAt) continue;
+    const stamp = new Date(product.updatedAt);
+    if (Number.isNaN(stamp.getTime())) continue;
+    if (!latest || stamp > latest) latest = stamp;
+  }
+  return latest ? latest.toISOString().slice(0, 10) : fallback;
+}
+
 // Only ids we can safely place in a path and an attribute.
 const isSafeId = (id) => typeof id === 'string' && /^[A-Za-z0-9_-]{1,120}$/.test(id);
 
@@ -82,7 +116,9 @@ async function writeSitemap(products) {
       path: `marketplace?category=${categoryId}`,
       priority: CATEGORY_PRIORITY[categoryId] || '0.6',
       changefreq: 'daily',
-      lastmod: today
+      // Dated from the newest product in the category so the sitemap is
+      // byte-identical when the catalogue is untouched.
+      lastmod: lastmodFrom(products, (product) => product.categoryId === categoryId, today)
     });
   }
 
@@ -103,10 +139,9 @@ async function writeSitemap(products) {
     ].filter(Boolean).join('\n'))
     .join('\n');
 
-  await writeFile(
+  await writeIfChanged(
     path.join(rootDir, 'sitemap.xml'),
-    `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`,
-    'utf8'
+    `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`
   );
   return entries.length;
 }
@@ -121,8 +156,8 @@ async function materialiseImage(product, index) {
   if (!match) return null;
   const extension = ({ 'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/avif': 'avif', 'image/gif': 'gif' })[match[1].toLowerCase()] || 'jpg';
   const fileName = `p${index}-${product.id}.${extension}`;
-  await writeFile(path.join(productDir, fileName), Buffer.from(match[2].replace(/\s+/g, ''), 'base64'));
-  return `product/${fileName}`;
+await writeIfChanged(path.join(productDir, fileName), Buffer.from(match[2].replace(/\s+/g, ''), 'base64'));
+    return `product/${fileName}`;
 }
 
 function productStructuredData(product, imageUrl, categoryId) {
@@ -210,7 +245,7 @@ ${imageUrl ? `  <img src="/${escapeXml(imageUrl)}" alt="${escapeXml(title)}" wid
 </html>
 `;
     // Netlify serves /product/<id> from product/<id>.html via pretty URLs.
-    await writeFile(path.join(productDir, `${product.id}.html`), html, 'utf8');
+    await writeIfChanged(path.join(productDir, `${product.id}.html`), html);
     written.push({ id: product.id, imageUrl });
   }
   return written;
@@ -238,7 +273,7 @@ async function writeRobots() {
     'Sitemap: https://vhmart.online/sitemap.xml',
     ''
   ].join('\n');
-  await writeFile(path.join(rootDir, 'robots.txt'), body, 'utf8');
+  await writeIfChanged(path.join(rootDir, 'robots.txt'), body);
 }
 
 // Best-effort crawl notification. Bing's IndexNow endpoint needs no account and
@@ -301,9 +336,32 @@ async function removeStaleProductFiles(pages) {
 
 try {
   const products = await fetchPublishedProducts();
-  const snapshot = { generatedAt: new Date().toISOString(), count: products.length, products };
-  await writeFile(outputPath, JSON.stringify(snapshot, null, 2), 'utf8');
-  console.log(`Snapshot written: ${outputPath}`);
+
+  // generatedAt was stamped with the wall clock on every run, so products.json
+  // differed on every run even when the catalogue was untouched, and every
+  // build left a modified file behind. The field is only worth having if it
+  // records when the catalogue last changed, so the previous stamp is reused
+  // whenever the product data is byte-identical.
+  //
+  // notify-indexnow reads this to pick which URLs to resubmit and walks back a
+  // day from it. A stamp that only moves on a real change is exactly what that
+  // wants: an unchanged catalogue has nothing new to submit.
+  const body = { count: products.length, products };
+  const serialisedBody = JSON.stringify(body, null, 2);
+  let generatedAt = new Date().toISOString();
+  try {
+    const previous = JSON.parse(await readFile(outputPath, 'utf8'));
+    const previousBody = JSON.stringify({ count: previous.count, products: previous.products }, null, 2);
+    if (previousBody === serialisedBody && previous.generatedAt) {
+      generatedAt = previous.generatedAt;
+      console.log('Catalogue unchanged: keeping the existing generatedAt stamp.');
+    }
+  } catch {
+    // No previous snapshot, or it is unreadable: use the current time.
+  }
+  const snapshot = { generatedAt, ...body };
+  const snapshotChanged = await writeIfChanged(outputPath, JSON.stringify(snapshot, null, 2));
+  console.log(snapshotChanged ? `Snapshot written: ${outputPath}` : `Snapshot unchanged: ${outputPath}`);
   console.log(`Published products: ${products.length}`);
 
   const pages = await writeProductPages(products);
