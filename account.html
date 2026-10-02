@@ -47,7 +47,14 @@ requireUser(async (user, profile) => {
   const email = document.createElement('p');
   email.textContent = 'Email: ' + (profile.email || user.email || '');
   const role = document.createElement('p');
-  role.textContent = 'Account type: ' + (profile.role === 'vendor' ? 'Vendor' : 'Customer');
+  // An admin has no `role` in their own profile row, because admin access lives
+  // in the admins node or a custom claim. requireUser() resolves it to 'admin',
+  // so a two-way check here used to label every administrator as a Customer.
+  const roleLabel = { admin: 'Administrator', vendor: 'Vendor', customer: 'Customer' }[profile.role] || 'Customer';
+  role.textContent = 'Account type: ' + roleLabel;
+  if (profile.role === 'admin') {
+    role.textContent += ' (full access to every account on the site)';
+  }
   const joined = document.createElement('p');
   joined.textContent = 'Joined: ' + (profile.createdAt ? new Date(profile.createdAt).toLocaleDateString() : 'recently');
   details.append(heading, email, role, joined);

@@ -4,9 +4,10 @@
 <body><main class="page">
 <p><a href="dashboard.html">← Admin dashboard</a></p>
 <h1>Accounts</h1>
-<p>Deleting an account disables it and hides it from the site. The record is kept so you can pull it up for legal or audit reasons, and you can restore it later.</p>
+<p>Every account on the site, customers and vendors together. Approve or reject a vendor application, suspend or delete any account, and grant admin access. Deleting an account disables it and hides it from the site. The record is kept so you can pull it up for legal or audit reasons, and you can restore it later.</p>
 <div class="button-row" style="margin:16px 0">
   <button type="button" class="button button--primary" data-filter="active">Active</button>
+  <button type="button" class="button button--quiet" data-filter="pending">Pending approval</button>
   <button type="button" class="button button--quiet" data-filter="deleted">Deleted</button>
   <button type="button" class="button button--quiet" data-filter="admins">Admin access</button>
 </div>
@@ -32,6 +33,24 @@ requireAdmin(async (user, profile) => {const list = document.querySelector('#lis
     el.textContent = label;
     el.addEventListener('click', handler);
     return el;
+  }
+
+  // Keeps product visibility in step with a vendor decision. Approving an
+  // application republishes the products that were only suspended because the
+  // vendor was not approved yet; rejecting suspends them again.
+  async function syncProducts(vendorId, vendorStatus) {
+    const snapshot = await get(query(ref(database, 'products'), orderByChild('vendorId'), equalTo(vendorId)));
+    const updates = [];
+    if (snapshot.exists()) {
+      Object.entries(snapshot.val()).forEach(([productId, product]) => {
+        if (vendorStatus === 'SUSPENDED' && product.status === 'PUBLISHED' && !product.deletedAt) {
+          updates.push([`products/${productId}`, { status: 'SUSPENDED', vendorSuspended: true, updatedAt: serverTimestamp() }]);
+        } else if (vendorStatus === 'ACTIVE' && product.status === 'SUSPENDED' && product.vendorSuspended === true) {
+          updates.push([`products/${productId}`, { status: 'PUBLISHED', vendorSuspended: false, updatedAt: serverTimestamp() }]);
+        }
+      });
+    }
+    return updates;
   }
 
   function label(value) {
@@ -141,36 +160,84 @@ requireAdmin(async (user, profile) => {const list = document.querySelector('#lis
     loading.textContent = 'Loading accounts...';
     list.append(loading);
     try {
-      const snapshot = await get(ref(database, 'users'));
+      // Vendors are read alongside users so one page can approve, reject,
+      // suspend and delete any account. An admin may read both nodes.
+      const [usersSnapshot, vendorsSnapshot] = await Promise.all([
+        get(ref(database, 'users')),
+        get(ref(database, 'vendors'))
+      ]);
+      const vendorRecords = vendorsSnapshot.exists() ? vendorsSnapshot.val() : {};
       list.replaceChildren();
-      if (!snapshot.exists()) { list.textContent = 'No accounts found.'; return; }
-      const entries = Object.entries(snapshot.val()).filter(([, account]) => {
+      if (!usersSnapshot.exists()) { list.textContent = 'No accounts found.'; return; }
+      const entries = Object.entries(usersSnapshot.val()).filter(([id, account]) => {
         const deleted = Boolean(account.deletedAt);
+        // Administrators are hidden here on purpose: deleting one could leave
+        // nobody able to undo it, and admin access is managed in its own tab.
         if (account.role === 'admin') return false;
-        return currentFilter === 'deleted' ? deleted : !deleted;
+        if (currentFilter === 'deleted') return deleted;
+        // Vendor records are keyed by the owner's uid, so id is the lookup key.
+        if (currentFilter === 'pending') return !deleted && (vendorRecords[id] || {}).status === 'PENDING';
+        return !deleted;
       });
       if (!entries.length) {
         const empty = document.createElement('p');
         empty.className = 'empty';
-        empty.textContent = currentFilter === 'deleted' ? 'No deleted accounts.' : 'No accounts in this view.';
+        empty.textContent = currentFilter === 'deleted' ? 'No deleted accounts.' : currentFilter === 'pending' ? 'No vendor applications waiting for approval.' : 'No accounts in this view.';
         list.append(empty);
         return;
       }
       entries.forEach(([id, account]) => {
+        const vendor = vendorRecords[id] || null;
         const card = document.createElement('article');
         card.className = 'form-panel';
         const heading = document.createElement('h2');
         heading.textContent = account.name || account.email || 'Account';
         const details = document.createElement('p');
-        details.textContent = `${account.email || ''} · ${account.role || 'customer'}${account.active === false && !account.deletedAt ? ' · suspended' : ''}`;
+        const roleLabel = account.role === 'vendor' ? 'Vendor' : account.role === 'admin' ? 'Administrator' : 'Customer';
+        const bits = [account.email || '', roleLabel];
+        if (vendor && vendor.status) bits.push('vendor ' + String(vendor.status).toLowerCase());
+        if (account.active === false && !account.deletedAt) bits.push('suspended');
+        details.textContent = bits.filter(Boolean).join(' · ');
         card.append(heading, details);
         if (account.deletedAt) {
           const note = document.createElement('p');
-          note.textContent = `Deleted${account.deletedBy ? '' : ''}. Record retained.`;
+          note.textContent = `Deleted. Record retained.`;
           card.append(note);
         }
         const actions = document.createElement('div');
         actions.className = 'button-row';
+
+        // Approve / reject a vendor application. Rules only cascade downwards,
+        // so each path is written separately and ordered so a partial failure
+        // leaves the vendor with LESS access, never more.
+        if (vendor && !account.deletedAt && (vendor.status === 'PENDING' || vendor.status === 'DECLINED')) {
+          actions.append(
+            button('Approve', 'button--primary', async (event) => {
+              event.target.disabled = true;
+              try {
+                const productUpdates = await syncProducts(id, 'ACTIVE');
+                await update(ref(database, `users/${id}`), { active: true, updatedAt: serverTimestamp() });
+                await update(ref(database, `vendors/${id}`), { status: 'ACTIVE', declinedReason: '', updatedAt: serverTimestamp() });
+                for (const [path, value] of productUpdates) await update(ref(database, path), value);
+                await log('approve_vendor', id, account.email || '');
+                load();
+              } catch (error) { console.error(error); alert('Could not approve this vendor.'); event.target.disabled = false; }
+            }),
+            button('Reject', 'button--danger', async (event) => {
+              const reason = window.prompt('Reason for rejecting this vendor application', 'Does not meet VHMART vendor criteria');
+              if (reason === null) return;
+              event.target.disabled = true;
+              try {
+                const productUpdates = await syncProducts(id, 'SUSPENDED');
+                await update(ref(database, `vendors/${id}`), { status: 'DECLINED', declinedReason: reason, updatedAt: serverTimestamp() });
+                for (const [path, value] of productUpdates) await update(ref(database, path), value);
+                await log('reject_vendor', id, reason);
+                load();
+              } catch (error) { console.error(error); alert('Could not reject this vendor.'); event.target.disabled = false; }
+            })
+          );
+        }
+
         if (!account.deletedAt && account.active !== false) {
           actions.append(button('Grant admin access', 'button--quiet', async (event) => {
             if (!window.confirm('Grant full admin access to ' + (account.email || account.name || id) + '?\n\nThey will be able to approve vendors, moderate products, view analytics and manage every account. You can remove this access again from the Admin access tab.')) return;
@@ -232,6 +299,7 @@ requireAdmin(async (user, profile) => {const list = document.querySelector('#lis
             }));
           }
           actions.append(button('Delete', 'button--danger', async (event) => {
+            if (id === user.uid) { alert('You cannot delete the account you are signed in with.'); return; }
             const reason = window.prompt('Reason for deleting this account (kept on record)', 'Deleted by admin');
             if (reason === null) return;
             event.target.disabled = true;

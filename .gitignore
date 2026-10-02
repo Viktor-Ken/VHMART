@@ -23,3 +23,6 @@ MIGRATION_GUIDE.md
 Thumbs.db
 # Local Netlify folder
 .netlify
+
+# Staged publish output, rebuilt by scripts/build-publish.js
+public/

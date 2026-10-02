@@ -1,0 +1,18 @@
+# Netlify site configuration.
+
+# The publish directory is the only field that matters here. It points at the
+# folder built by scripts/build-publish.js, which stages just the site.
+#
+# There is deliberately no build command. Adding one would make Netlify run it
+# on every deploy, and this project has no bundler - the HTML, CSS and JS files
+# are served exactly as committed. The staging step is run locally instead, as
+# part of the deploy, so what gets published is reviewable before it ships.
+#
+# Why a publish directory is required at all: with an empty publish setting,
+# `netlify deploy` uploads the whole folder and serves it from the root.
+# .netlifyignore and .gitignore are both ignored during that upload, which is
+# how the database rules and package.json ended up publicly downloadable.
+[build]
+  publish = "public"
+
+# No framework preset: this is hand-written static HTML.

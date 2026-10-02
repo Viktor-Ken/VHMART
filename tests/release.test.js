@@ -367,3 +367,98 @@ test('the homepage is counted and the tracker resolves from nested pages', () =>
     assert.match(injector, /replace\(\/\\s\+\$\/, ''\)/,
       'inject() must trim the whitespace left behind when it removes the previous block');
   });
+
+  test('every password field can be shown and hidden', () => {
+    // The eye control was missing from sign-in. Each page with a password input
+    // needs the wrapper, a toggle pointing at the field id, the script, and CSS.
+    const pages = ['login.html', 'admin/login.html', 'register.html', 'vendor/register.html'];
+    for (const page of pages) {
+      const html = read(page);
+      assert.match(html, /class="password-field"/, `${page} is missing the password-field wrapper`);
+      assert.match(html, /data-password-toggle="password"/, `${page} is missing the visibility toggle`);
+      assert.match(html, /js\/password-toggle\.js/, `${page} does not load the toggle script`);
+    }
+
+    const toggle = read('js/password-toggle.js');
+    // It must flip the type, and keep aria-pressed and the accessible name in
+    // step so a screen reader is not told the wrong state.
+    assert.match(toggle, /input\.type = revealed \? 'password' : 'text'/, 'the toggle must switch the input type');
+    assert.match(toggle, /aria-pressed/, 'the toggle must expose its state');
+    assert.match(toggle, /preventDefault\(\)/,
+      'the toggle sits inside a <label>, which forwards clicks to its input');
+    assert.match(toggle, /data-password-toggle/, 'the script must find its target via the data attribute');
+
+    const css = read('css/main.css');
+    assert.match(css, /\.password-toggle\s*\{/, 'the toggle needs styling');
+    assert.match(css, /\.password-field input\s*\{[^}]*padding-right/, 'text must not run under the toggle');
+  });
+
+  test('an administrator is never labelled a customer', () => {
+    // account.html used a two-way ternary, so an admin - whose role comes from
+    // the admins node or a custom claim rather than their profile row - fell
+    // through to the Customer branch on their own account page.
+    const html = read('account.html');
+    assert.match(html, /admin:\s*'Administrator'/, 'account.html must map the admin role to a label');
+    assert.doesNotMatch(html, /profile\.role === 'vendor' \? 'Vendor' : 'Customer'/,
+      'the two-way role check is what mislabelled administrators');
+  });
+
+  test('an admin can approve, reject and delete any account, customer or vendor', () => {
+    const source = read('admin/accounts.html');
+
+    // Vendors are keyed by the owner's uid, so the page has to read that node
+    // too rather than deciding from the users row alone.
+    assert.match(source, /get\(ref\(database, 'vendors'\)\)/, 'the page must read vendors to find pending applications');
+
+    assert.match(source, /button\('Approve'/, 'an admin must be able to approve a vendor application');
+    assert.match(source, /button\('Reject'/, 'an admin must be able to reject a vendor application');
+    assert.match(source, /status: 'ACTIVE'/, 'approval must activate the vendor');
+    assert.match(source, /status: 'DECLINED'/, 'rejection must record a decision');
+
+    // Approving a vendor must republish what was only suspended because the
+    // application was still pending, otherwise the storefront stays dark.
+    assert.match(source, /syncProducts/, 'product visibility must follow the vendor decision');
+    assert.match(source, /vendorSuspended: false/, 'approval must clear the pending-suspension flag');
+
+    // Every decision is auditable.
+    assert.match(source, /log\('approve_vendor'/, 'approval must be audited');
+    assert.match(source, /log\('reject_vendor'/, 'rejection must be audited');
+    assert.match(source, /log\('delete_user'/, 'deletion must be audited');
+
+    // Deletion must remain reversible, and must not allow an admin to delete the
+    // account they are signed in with.
+    assert.match(source, /button\('Restore'/, 'deletion must stay reversible');
+    assert.match(source, /if \(id === user\.uid\)/, 'an admin must not be able to delete their own account');
+    assert.match(source, /if \(account\.role === 'admin'\) return false/,
+      'administrators must be excluded from the manageable list to avoid a lockout');
+
+    // The pending filter is what makes an unapproved application findable.
+    assert.match(source, /data-filter="pending"/, 'there must be a pending-approval view');
+    assert.match(source, /currentFilter === 'pending'/, 'the pending view must filter on vendor status');
+  });
+
+  test('the publish folder is the only thing Netlify will serve', () => {
+    // `netlify deploy` ignores .netlifyignore and .gitignore when uploading a
+    // folder, which is how the database rules and package.json were published.
+    // The fix is a staged publish directory plus an assertion over it.
+    const toml = read('netlify.toml');
+    assert.match(toml, /\[build\]/, 'netlify.toml must configure the build');
+    assert.match(toml, /publish\s*=\s*"public"/, 'the publish directory must be public/');
+    assert.doesNotMatch(toml, /^\s*command\s*=/m,
+      'this project has no bundler, so a build command would only add a failure mode');
+
+    const build = read('scripts/build-publish.js');
+    assert.match(build, /EXCLUDED_DIRS/, 'the staging step must exclude directories');
+    assert.match(build, /EXCLUDED_FILES/, 'the staging step must exclude individual files');
+    assert.match(build, /database\.rules\.json|firebase/, 'the staging step must keep firebase internals out');
+
+    // check-publish.js is the regression guard for the exact paths that leaked.
+    const check = read('scripts/check-publish.js');
+    for (const leak of ['firebase/database.rules.json', 'package.json', 'playwright.config.js']) {
+      assert.ok(check.includes(leak), `the publish check must guard ${leak}`);
+    }
+    assert.match(check, /process\.exitCode = 1/, 'the publish check must fail the build, not just warn');
+
+    // public/ is generated, so it must never be committed.
+    assert.match(read('.gitignore'), /^public\/$/m, 'public/ must be gitignored');
+  });
