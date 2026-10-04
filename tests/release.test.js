@@ -837,3 +837,59 @@ const privateDirs = ['admin', 'vendor', 'account', 'js'];
     assert.match(source, /adminsForRole && adminsForRole\.exists\(\)/,
       'a null roster must be handled, not dereferenced');
   });
+
+  test('above-the-fold content is not deferred', () => {
+    const html = read('index.html');
+    const images = [...html.matchAll(/<img[^>]*>/g)].map((m) => m[0]);
+    assert.ok(images.length >= 4, `expected several homepage images, found ${images.length}`);
+
+    const hero = images.find((tag) => tag.includes('home-removebg'));
+    assert.ok(hero, 'the hero image must be present');
+    // Deferring the hero would delay the largest paint on the page, which is
+    // the opposite of what the lazy-loading pass was for.
+    assert.doesNotMatch(hero, /loading="lazy"/,
+      'the above-the-fold hero must not be lazy loaded');
+    assert.match(hero, /fetchpriority="high"/,
+      'the hero should be fetched at high priority');
+    assert.match(hero, /decoding="async"/,
+      'decoding must not block first paint');
+
+    // Everything below the fold should be deferred.
+    const belowFold = images.filter((tag) => !tag.includes('home-removebg'));
+    assert.ok(belowFold.length >= 3, 'expected several below-the-fold images');
+    for (const tag of belowFold) {
+      assert.match(tag, /loading="lazy"/, `below-the-fold image is not deferred: ${tag}`);
+      assert.match(tag, /decoding="async"/, `image is not async-decoded: ${tag}`);
+    }
+
+    // Width and height must stay, or lazy loading reintroduces layout shift.
+    for (const tag of images) {
+      assert.match(tag, /width="\d+"/, `image without width: ${tag}`);
+      assert.match(tag, /height="\d+"/, `image without height: ${tag}`);
+    }
+  });
+
+  test('analytics never blocks the page it measures', () => {
+    const track = read('js/track.js');
+
+    // Importing the tracker pulls in the Firebase SDK, around 490 KB across four
+    // gstatic modules. A signed-out visitor on a marketing page needs none of that
+    // before the page is usable, so it must not run during load.
+    assert.match(track, /requestIdleCallback/,
+      'the Firebase SDK must be fetched when the browser is idle');
+    assert.match(track, /setTimeout/,
+      'a fallback is needed where requestIdleCallback is unavailable');
+
+    // The idle request must be bounded, or a page that never goes idle would
+    // never record a visit at all.
+    assert.match(track, /timeout:\s*\d+/,
+      'requestIdleCallback must have a timeout so tracking still happens');
+
+    // It must still run on a page that was already loaded when the script parsed.
+    assert.match(track, /readyState === 'complete'/,
+      'a late-loading tracker must still record the view');
+
+    // Best effort: a failure must never surface to the visitor.
+    assert.match(track, /\.catch\(/,
+      'a tracker failure must be swallowed');
+  });
