@@ -368,7 +368,19 @@ requireAdmin(async (user, profile) => {const list = document.querySelector('#lis
       });
     } catch (error) {
       console.error(error);
-      list.textContent = 'Could not load accounts. Please refresh and try again.';
+      list.replaceChildren();
+      // A denied read is not a bug to retry: it means this account holds no
+      // administrator grant, so every admin-scoped read will fail. Say that
+      // plainly instead of asking for a refresh that cannot help.
+      const denied = error && (error.code === 'PERMISSION_DENIED' || /permission denied/i.test(error.message || ''));
+      const failed = document.createElement('p');
+      failed.className = 'empty';
+      if (denied) {
+        failed.textContent = 'Your account has no administrator grant, so these records cannot be read. Sign in at admin/login.html with the administrator account.';
+      } else {
+        failed.textContent = 'Could not load accounts: ' + ((error && error.message) || 'unknown error') + '. Please refresh and try again.';
+      }
+      list.append(failed);
     }
   }
 

@@ -893,3 +893,26 @@ const privateDirs = ['admin', 'vendor', 'account', 'js'];
     assert.match(track, /\.catch\(/,
       'a tracker failure must be swallowed');
   });
+
+  test('a stale id token cannot hide an admin grant', () => {
+    const auth = read('js/auth.js');
+    const accounts = read('admin/accounts.html');
+
+    // Custom claims are baked into the token at sign-in. Reading the cached
+    // token reported a freshly granted administrator as a customer, so every
+    // admin-scoped read was denied and the accounts page showed
+    // "Could not load accounts" instead of saying why.
+    const requireUser = /export function requireUser\([\s\S]*?\n}/.exec(auth);
+    assert.ok(requireUser, 'requireUser must exist');
+    assert.match(requireUser[0], /getIdTokenResult\(true\)/,
+      'requireUser must force a token refresh so a new claim is visible');
+
+    // A denied read must be reported as such. A generic "refresh and try again"
+    // sent the operator looking for a browser problem that does not exist.
+    assert.match(accounts, /PERMISSION_DENIED/,
+      'a permission denial must be recognised');
+    assert.match(accounts, /no administrator grant/,
+      'the page must state that the account has no admin grant');
+    assert.match(accounts, /error && error\.message/,
+      'any other failure must report the actual reason');
+  });

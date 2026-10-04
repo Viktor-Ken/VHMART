@@ -50,7 +50,10 @@ export function requireUser(onReady, loginPath = '../login.html', onError) {
             // that path is intentionally protected and a denied read must not block normal login.
             const userSnapshot = await get(ref(database, `users/${user.uid}`));
             const userProfile = userSnapshot.val() || {};
-            const token = await user.getIdTokenResult();
+            // Force a refresh. A cached token predates any admin claim granted
+            // since sign-in, so trusting it reported a granted administrator as
+            // a customer and denied the reads the admin pages need.
+            const token = await user.getIdTokenResult(true);
             const admin = await isAdmin(user, token);
             const role = admin
                 ? 'admin'
@@ -105,6 +108,8 @@ export function requireAdmin(onReady, loginPath = '../login.html') {
     requireUser(async (user, profile) => {
         let allowed = false;
         try {
+            // requireUser already forced a refresh, so this read is current.
+            // Claims minted after sign-in are only visible on a fresh token.
             const token = await user.getIdTokenResult();
             allowed = await isAdmin(user, token);
         } catch (error) {
