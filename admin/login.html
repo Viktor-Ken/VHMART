@@ -29,8 +29,8 @@
   </main>
   <script type="module">
     import { auth } from '../js/firebase.js';
-    import { signInWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/12.10.0/firebase-auth.js';
-    import { ADMIN_EMAIL } from '../js/auth.js';
+    import { signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/12.10.0/firebase-auth.js';
+    import { ADMIN_EMAIL, isAdmin } from '../js/auth.js';
 
     const form = document.querySelector('#adminLoginForm');
     const message = document.querySelector('#message');
@@ -46,7 +46,17 @@
       button.disabled = true;
       message.textContent = 'Signing in...';
       try {
-        await signInWithEmailAndPassword(auth, email, form.password.value);
+        const credential = await signInWithEmailAndPassword(auth, email, form.password.value);
+        // Verify the grant before sending anyone to a page that would only
+        // bounce them. Checking the password alone proves nothing: the account
+        // can authenticate while holding no admin rights at all.
+        const token = await credential.user.getIdTokenResult();
+        if (!await isAdmin(credential.user, token)) {
+          await signOut(auth);
+          button.disabled = false;
+          message.textContent = 'Signed in, but this account has no administrator grant.';
+          return;
+        }
         location.href = 'dashboard.html';
       } catch (error) {
         console.error(error);

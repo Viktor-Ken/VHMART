@@ -277,7 +277,10 @@ test('login routes admins to the dashboard regardless of how access was granted'
 test('admin pages are gated by the shared requireAdmin helper', () => {
   const auth = read('js/auth.js');
   assert.match(auth, /export function requireAdmin/, 'requireAdmin must be exported');
-  assert.match(auth, /profile\.role !== 'admin'/, 'requireAdmin must refuse non-admins');
+  // Authority comes from the admin claim or the admins node, not the role column.
+    assert.match(auth, /isAdmin\(user, token\)/, 'requireAdmin must refuse non-admins');
+    assert.doesNotMatch(auth, /profile\.role !== 'admin'/,
+      'requireAdmin must not gate on the role column, which can lag behind the real grant');
 
   // admin/dashboard.html gates through startAdmin(); every other admin page must
   // call requireAdmin directly. An inline role check is no longer enough.
@@ -464,7 +467,7 @@ test('the homepage is counted and the tracker resolves from nested pages', () =>
     // account they are signed in with.
     assert.match(source, /button\('Restore'/, 'deletion must stay reversible');
     assert.match(source, /if \(id === user\.uid\)/, 'an admin must not be able to delete their own account');
-    assert.match(source, /if \(account\.role === 'admin'\) return false/,
+assert.match(source, /if \(isAdminAccount\(id, account\)\) return false/,
       'administrators must be excluded from the manageable list to avoid a lockout');
 
     // The pending filter is what makes an unapproved application findable.
@@ -685,4 +688,42 @@ const privateDirs = ['admin', 'vendor', 'account', 'js'];
     const page = read('admin/analytics.html');
     assert.match(page, /requireAdmin/, 'the analytics report must require an admin');
     assert.match(page, /recentTraffic/, 'the analytics report must read the traffic data');
+  });
+
+  test('admin access is judged by the grant, not the role column', () => {
+    const auth = read('js/auth.js');
+    const adminLogin = read('admin/login.html');
+    const accounts = read('admin/accounts.html');
+
+    // Authority lives in the `admins` node and the admin claim. Checking
+    // profile.role instead sent a genuine administrator to the homepage,
+    // because role is a label that can lag behind the real grant.
+    const requireAdmin = /export function requireAdmin\([\s\S]*?\n}/.exec(auth);
+    assert.ok(requireAdmin, 'requireAdmin must exist');
+    assert.match(requireAdmin[0], /isAdmin\(user, token\)/,
+      'requireAdmin must ask isAdmin, which checks the claim and the admins node');
+    assert.doesNotMatch(requireAdmin[0], /profile\.role !== 'admin'/,
+      'requireAdmin must not gate on the role column');
+
+    // admin/login.html used to redirect to the dashboard on a successful
+    // password alone, so anyone who knew the password landed on a page that
+    // immediately bounced them. It must verify the grant, and sign the user out
+    // again rather than leave a session behind.
+    assert.match(adminLogin, /isAdmin\(credential\.user, token\)/,
+      'the admin login must verify the grant before redirecting');
+    assert.match(adminLogin, /signOut\(auth\)/,
+      'a session with no admin grant must be closed, not left open');
+
+    // The accounts list must agree with the same definition, otherwise an admin
+    // granted by claim is rendered as "Customer".
+    assert.match(accounts, /adminIds\.has\(id\)/,
+      'the accounts list must treat the admins node as authoritative');
+    assert.match(accounts, /'Administrator'/,
+      'the accounts list must label an administrator correctly');
+    assert.doesNotMatch(accounts, /account\.role === 'admin' \? 'Administrator'/,
+      'the label must not depend on the role column alone');
+
+    // Still no lockout: an admin must not be able to delete their own account.
+    assert.match(accounts, /if \(id === user\.uid\)/,
+      'self-deletion must stay blocked');
   });

@@ -160,20 +160,28 @@ requireAdmin(async (user, profile) => {const list = document.querySelector('#lis
     loading.textContent = 'Loading accounts...';
     list.append(loading);
     try {
-      // Vendors are read alongside users so one page can approve, reject,
-      // suspend and delete any account. An admin may read both nodes.
-      const [usersSnapshot, vendorsSnapshot] = await Promise.all([
-        get(ref(database, 'users')),
-        get(ref(database, 'vendors'))
-      ]);
-      const vendorRecords = vendorsSnapshot.exists() ? vendorsSnapshot.val() : {};
-      list.replaceChildren();
-      if (!usersSnapshot.exists()) { list.textContent = 'No accounts found.'; return; }
-      const entries = Object.entries(usersSnapshot.val()).filter(([id, account]) => {
-        const deleted = Boolean(account.deletedAt);
-        // Administrators are hidden here on purpose: deleting one could leave
+// Vendors are read alongside users so one page can approve, reject,
+        // suspend and delete any account. An admin may read both nodes.
+        const [usersSnapshot, vendorsSnapshot, adminsForRole] = await Promise.all([
+          get(ref(database, 'users')),
+          get(ref(database, 'vendors')),
+          get(ref(database, 'admins'))
+        ]);
+        const vendorRecords = vendorsSnapshot.exists() ? vendorsSnapshot.val() : {};
+        // Administrator authority lives in the `admins` node and the admin
+        // claim, not in users.role. Relying on the role column meant a real
+        // administrator granted by claim showed up here as "Customer", which is
+        // exactly the mislabelling this page is meant to prevent.
+        const adminIds = new Set(adminsForRole.exists() ? Object.keys(adminsForRole.val()) : []);
+        adminIds.add(user.uid);
+        const isAdminAccount = (id, account) => account.role === 'admin' || adminIds.has(id);
+        list.replaceChildren();
+        if (!usersSnapshot.exists()) { list.textContent = 'No accounts found.'; return; }
+        const entries = Object.entries(usersSnapshot.val()).filter(([id, account]) => {
+          const deleted = Boolean(account.deletedAt);
+          // Administrators are hidden here on purpose: deleting one could leave
         // nobody able to undo it, and admin access is managed in its own tab.
-        if (account.role === 'admin') return false;
+        if (isAdminAccount(id, account)) return false;
         if (currentFilter === 'deleted') return deleted;
         // Vendor records are keyed by the owner's uid, so id is the lookup key.
         if (currentFilter === 'pending') return !deleted && (vendorRecords[id] || {}).status === 'PENDING';
@@ -193,7 +201,8 @@ requireAdmin(async (user, profile) => {const list = document.querySelector('#lis
         const heading = document.createElement('h2');
         heading.textContent = account.name || account.email || 'Account';
         const details = document.createElement('p');
-        const roleLabel = account.role === 'vendor' ? 'Vendor' : account.role === 'admin' ? 'Administrator' : 'Customer';
+        const roleLabel = isAdminAccount(id, account) ? 'Administrator'
+            : account.role === 'vendor' ? 'Vendor' : 'Customer';
         const bits = [account.email || '', roleLabel];
         if (vendor && vendor.status) bits.push('vendor ' + String(vendor.status).toLowerCase());
         if (account.active === false && !account.deletedAt) bits.push('suspended');

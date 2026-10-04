@@ -80,9 +80,22 @@ export function requireUser(onReady, loginPath = '../login.html', onError) {
 
 // Single entry point for admin pages. Refuses non-admins before any admin data
 // is requested, so a signed-in customer never sees a half-rendered page.
+//
+// Authority is decided by isAdmin(), which checks the admin claim and the
+// `admins` node - the same conditions the database rules enforce. Checking
+// profile.role instead was wrong: role is a label that can lag behind the real
+// grant, so a genuine administrator holding role "customer" was bounced to the
+// homepage while the rules would have allowed every read they attempted.
 export function requireAdmin(onReady, loginPath = '../login.html') {
     requireUser(async (user, profile) => {
-        if (profile.role !== 'admin') {
+        let allowed = false;
+        try {
+            const token = await user.getIdTokenResult();
+            allowed = await isAdmin(user, token);
+        } catch (error) {
+            console.warn('Could not verify admin access:', error && error.message);
+        }
+        if (!allowed) {
             location.href = '../index.html';
             return;
         }
