@@ -13,7 +13,8 @@ const SITE_ORIGIN = 'https://vhmart.online';
 const SITE_NAME = 'VisuaHealth Market';
 const DEFAULT_IMAGE = `${SITE_ORIGIN}/Visuamall/general/home-removebg-preview.png`;
 
-// route is the clean URL the live site serves (Netlify pretty URLs). canonical
+// route is the clean URL the live site serves (static hosts resolve a clean URL
+// to the matching .html file). canonical
 // must point there, never at the .html file, or the two compete in the index.
 const PAGES = {
   'index.html': {

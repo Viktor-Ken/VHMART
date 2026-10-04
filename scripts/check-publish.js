@@ -1,8 +1,8 @@
 // Fail loudly if the publish output contains anything that must not go public.
 //
-// `netlify deploy` silently uploads whatever is in the publish directory, and a
-// stale public/ from an earlier run is a real risk. This asserts both halves:
-// every sensitive path is absent, and the pages the site needs are present.
+// A static host uploads whatever is in the publish directory, and a stale public/
+// from an earlier run is a real risk. This asserts both halves: every sensitive
+// path is absent, and the pages the site needs are present.
 //
 // Run: node scripts/check-publish.js
 
@@ -24,6 +24,10 @@ const FORBIDDEN = [
   'playwright.config.js',
   'README.md',
   '.gitignore',
+  'wrangler.toml',
+  '.node-version',
+  // Still guarded even though the Netlify config is gone: these leaked before,
+  // and restoring them should not silently reopen that hole.
   '.netlifyignore',
   'netlify.toml',
   'scripts',

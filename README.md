@@ -15,6 +15,20 @@ The current static HTML architecture is retained. Shared browser modules live in
 
 The web API key is a Firebase client identifier, not an authorization mechanism. Access control is enforced by rules and claims.
 
+## Hosting (Cloudflare Pages)
+
+The static site is served by Cloudflare Pages. Firebase still provides Authentication, Realtime Database and Storage; only the static host moved.
+
+- **Build command:** `npm run publish:prepare`
+- **Build output directory:** `public`
+- **Root directory:** repository root
+
+No dependency install is needed for the build. `scripts/build-publish.js`, `scripts/build-seo.js`, `scripts/seo-heads.js`, `scripts/seo-check.js` and `scripts/check-publish.js` import only Node builtins, so the build works in a clean checkout with no `node_modules`. `npm install` is still required locally for the emulator, rules tests and Playwright.
+
+`publish:prepare` is idempotent: it rewrites nothing when the catalogue has not changed, so a build does not leave the working tree dirty.
+
+The build publishes `public/`, which stages only site files. This is deliberate. Uploading a folder publishes its whole contents, and during the earlier Netlify setup both `.netlifyignore` and `.gitignore` were ignored during upload, which exposed `firebase/database.rules.json` and `package.json`. `scripts/check-publish.js` fails the build if any such path appears in the output.
+
 ## Data model
 
 Use `users/{uid}`, `vendor_applications/{id}`, `vendors/{vendorId}`, `products/{productId}`, `product_images/{productId}/{imageId}`, `categories/{categoryId}`, `enquiries/{id}`, `favourites/{uid}/{productId}`, `reports/{id}` and `audit_logs/{id}`. Public reads are limited to active vendors, published products and active categories.

@@ -472,28 +472,36 @@ test('the homepage is counted and the tracker resolves from nested pages', () =>
     assert.match(source, /currentFilter === 'pending'/, 'the pending view must filter on vendor status');
   });
 
-  test('the publish folder is the only thing Netlify will serve', () => {
-    // `netlify deploy` ignores .netlifyignore and .gitignore when uploading a
-    // folder, which is how the database rules and package.json were published.
-    // The fix is a staged publish directory plus an assertion over it.
-    const toml = read('netlify.toml');
-    assert.match(toml, /\[build\]/, 'netlify.toml must configure the build');
-    assert.match(toml, /publish\s*=\s*"public"/, 'the publish directory must be public/');
-    assert.doesNotMatch(toml, /^\s*command\s*=/m,
-      'this project has no bundler, so a build command would only add a failure mode');
+test('the publish folder is the only thing the static host will serve', () => {
+    // Uploading a folder publishes its whole contents, which is how the database
+    // rules and package.json ended up publicly downloadable. Both .netlifyignore
+    // and .gitignore were ignored during that upload. The fix is a staged publish
+    // directory plus an assertion over it.
+    const wrangler = read('wrangler.toml');
+    assert.match(wrangler, /pages_build_output_dir\s*=\s*"public"/,
+      'Cloudflare Pages must publish the staged directory, not the repo root');
+
+    // Cloudflare Pages resolves /foo to foo.html, the same way Netlify did, so the
+    // internal .html links keep working without a redirect rule. public/ is
+    // generated, so it must never be committed.
+    assert.match(read('.gitignore'), /^public\/$/m, 'public/ must be gitignored');
 
     const build = read('scripts/build-publish.js');
     assert.match(build, /EXCLUDED_DIRS/, 'the staging step must exclude directories');
     assert.match(build, /EXCLUDED_FILES/, 'the staging step must exclude individual files');
     assert.match(build, /database\.rules\.json|firebase/, 'the staging step must keep firebase internals out');
 
+    // The cache rule that firebase.json used to carry has to survive the move:
+    // Pages does not read firebase.json, so _headers is generated into the output.
+    assert.match(build, /_headers/, 'the staging step must emit _headers for Pages');
+    assert.match(build, /stale-while-revalidate=300/, 'the products.json cache rule must be preserved');
+
     // check-publish.js is the regression guard for the exact paths that leaked.
     const check = read('scripts/check-publish.js');
     for (const leak of ['firebase/database.rules.json', 'package.json', 'playwright.config.js']) {
       assert.ok(check.includes(leak), `the publish check must guard ${leak}`);
     }
+    // The host config is build metadata, not site content.
+    assert.ok(check.includes('wrangler.toml'), 'the publish check must guard wrangler.toml');
     assert.match(check, /process\.exitCode = 1/, 'the publish check must fail the build, not just warn');
-
-    // public/ is generated, so it must never be committed.
-    assert.match(read('.gitignore'), /^public\/$/m, 'public/ must be gitignored');
   });

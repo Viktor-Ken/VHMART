@@ -1,0 +1,12 @@
+name = "vhmart"
+compatibility_date = "2026-10-04"
+
+# Cloudflare Pages serves whatever is in this directory after the build command
+# runs. It points at public/ because that folder is built by
+# scripts/build-publish.js, which stages only the site - no database rules, no
+# package.json, no scripts.
+#
+# The same reason applied on Netlify: uploading a folder publishes its whole
+# contents, so the safe unit of publication is a folder that already contains
+# just the site, rather than a list of paths to exclude.
+pages_build_output_dir = "public"

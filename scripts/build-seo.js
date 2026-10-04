@@ -244,7 +244,7 @@ ${imageUrl ? `  <img src="/${escapeXml(imageUrl)}" alt="${escapeXml(title)}" wid
 </body>
 </html>
 `;
-    // Netlify serves /product/<id> from product/<id>.html via pretty URLs.
+    // The static host serves /product/<id> from product/<id>.html via clean URLs.
     await writeIfChanged(path.join(productDir, `${product.id}.html`), html);
     written.push({ id: product.id, imageUrl });
   }

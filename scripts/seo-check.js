@@ -18,7 +18,8 @@ async function exists(relative) {
   try { await access(path.join(rootDir, relative)); return true; } catch { return false; }
 }
 
-// A clean URL as Netlify resolves it: /foo -> foo.html or foo/index.html
+// A clean URL as static hosts resolve it: /foo -> foo.html or foo/index.html
+// Both Cloudflare Pages and the previous Netlify setup work this way.
 async function resolves(route) {
   const clean = route.replace(/^\//, '').split('?')[0];
   if (!clean) return await exists('index.html');
