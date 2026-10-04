@@ -79,6 +79,40 @@ test('a new vendor account can register but cannot self-approve', async () => {
   await assertFails(db.ref('users/newvendor').update({ role: 'admin' }), 'role must be immutable after creation');
 });
 
+test('a user cannot register themselves as an admin', async () => {
+  await fresh();
+
+  // The important case: creating the record already claiming admin, rather than
+  // updating an existing customer into one. If this ever passed, the whole
+  // moderation surface would be reachable from a public sign-up form.
+  await assertFails(
+    asUser('newadmin', 'new@example.com').ref('users/newadmin')
+      .set({ name: 'Sneaky', email: 'new@example.com', role: 'admin', active: true }),
+    'self-registration must not allow role admin'
+  );
+
+  // The two legitimate self-assignable roles must still work. Each needs its own
+  // uid and matching token email: the rules require newData.email to equal the
+  // signed-in user's email.
+  await assertSucceeds(
+    asUser('newcustomer', 'cust@example.com').ref('users/newcustomer')
+      .set({ name: 'Casey', email: 'cust@example.com', role: 'customer', active: true }),
+    'a customer must still be able to register'
+  );
+  await assertSucceeds(
+    asUser('newvendor', 'vendor@example.com').ref('users/newvendor')
+      .set({ name: 'Vic', email: 'vendor@example.com', role: 'vendor', active: true }),
+    'a vendor must still be able to register'
+  );
+
+  // And nobody may plant an admin while creating someone else's record.
+  await assertFails(
+    asUser('attacker', 'attacker@example.com').ref('users/victim')
+      .set({ name: 'Victim', email: 'victim@example.com', role: 'admin', active: true }),
+    'must not create another user as admin'
+  );
+});
+
 test('vendor registration succeeds when written one path at a time', async () => {
   await fresh();
   const db = asUser('newvendor', 'new@example.com');

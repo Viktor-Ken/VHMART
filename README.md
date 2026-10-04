@@ -15,6 +15,41 @@ The current static HTML architecture is retained. Shared browser modules live in
 
 The web API key is a Firebase client identifier, not an authorization mechanism. Access control is enforced by rules and claims.
 
+## Analytics
+
+Traffic is measured without any third-party script, so no visitor data leaves the Firebase project.
+
+- `js/track.js` is loaded on every page except `account-deleted.html`, `admin/login.html`, `admin/categories.html` and `vendor/deleted.html`. Sign-in and dead-end pages are deliberately not counted.
+- `js/analytics.js` records a daily view counter, a unique-visitor flag per day, and a `page_views` log entry containing the path, a random visitor id, a coarse device class and the referrer. No IP address, no fingerprint, no email.
+- Bots are filtered by user agent, and asset paths are ignored, so the counts reflect people rather than crawlers.
+
+Read it at `/admin/analytics.html`, which plots views and unique visitors for the last 30 days. Only an admin can open that page.
+
+Privacy boundary: the aggregate `daily` counter is publicly readable, but `unique` and `page_views` require an authenticated admin. Writes are open to anonymous visitors, because counting a visit cannot require an account, so the `.validate` rules are what constrain what can be written: a visitor row may only ever be the boolean `true`, and the view counter may only ever be a number.
+
+## Admin access
+
+An administrator is never created through the sign-up form, and cannot end up as a customer.
+
+The `users` write rule restricts self-registration to exactly two roles, `customer` and `vendor`. Submitting `role: 'admin'` from a public signup form is denied by the database rules, not merely hidden in the UI. Admin identity comes from one of:
+
+1. the `admin` custom claim, or
+2. an entry in the `admins` node, or
+3. the bootstrap email, but only while `admins` is still empty
+
+`js/auth.js` exposes `requireAdmin()`, which every admin page calls before loading any data, and `firebase/database.rules.json` independently enforces the same condition on the reads and writes those pages need. Hiding a page is not the control; the rules are.
+
+Moderation is admin-only and enforced in the rules:
+
+| Action | Who can do it |
+| --- | --- |
+| approve or decline a vendor application | admin only |
+| suspend or reinstate an account | admin only |
+| delete an account (reversible, sets `deletedAt`) | admin only, never your own |
+| restore a deleted account and its products | admin only |
+
+A vendor can only ever create their own record as `PENDING`, and cannot move it to `ACTIVE`. An administrator cannot delete their own account, and administrators are excluded from the manageable accounts list, so the last admin cannot be locked out.
+
 ## Hosting (Cloudflare Pages)
 
 The static site is served by Cloudflare Pages. Firebase still provides Authentication, Realtime Database and Storage; only the static host moved.

@@ -553,3 +553,136 @@ assert.match(ns, /cloudflareIsServing/, 'the gate must actually probe the Pages 
     // The verification file keeps Search Console property verification alive.
     assert.match(setup, /verification/i, 'setup must check the Search Console verification file');
   });
+
+  test('published pages contain no mojibake', () => {
+    // A UTF-8 character that gets decoded as Latin-1 leaves a stray character in
+    // the output. login.html had two, from a middle dot separator rendered as
+    // "A-circumflex + middot" instead of "middot". It is visible to users and
+// no functional test would catch it, so assert on the code points directly.
+    // Read the same public pages that are actually published, rather than
+    // shelling out to git: the tests should not depend on the vcs being present.
+    const pages = fs.readdirSync(path.join(root), { withFileTypes: true })
+      .filter((entry) => entry.isFile() && /\.(html|css|js|json|xml|txt)$/.test(entry.name))
+      .map((entry) => entry.name);
+    for (const file of ['admin', 'vendor', 'js', 'css', 'product']) {
+      const dir = path.join(root, file);
+      if (!fs.existsSync(dir)) continue;
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        if (entry.isFile() && /\.(html|css|js|json|xml|txt)$/.test(entry.name)) {
+          pages.push(`${file}/${entry.name}`);
+        }
+      }
+    }
+    assert.ok(pages.length > 0, 'expected to inspect some pages');
+
+    const offenders = [];
+    for (const file of pages) {
+      const text = fs.readFileSync(path.join(root, file), 'utf8');
+      // U+00C2 immediately before U+00B7 is a UTF-8 middle dot mis-decoded once.
+      if (/\u00C2\u00B7/.test(text)) offenders.push(`${file}: mis-decoded middle dot`);
+      // A replacement character means bytes that were not valid UTF-8 at all.
+      if (text.includes('\uFFFD')) offenders.push(`${file}: U+FFFD replacement character`);
+    }
+    assert.deepEqual(offenders, [], `encoding damage found:\n${offenders.join('\n')}`);
+
+    // The separator that was broken must still be present, so the fix cannot be
+    // "delete the character" and still pass.
+    const login = fs.readFileSync(path.join(root, 'login.html'), 'utf8');
+    assert.ok(login.includes('\u00B7'), 'login.html should still use a middle dot separator');
+  });
+
+  test('every signed-in page is excluded from search engines', () => {
+    // These pages require authentication, but their URLs are public and a
+    // crawler that finds one will index the title and description. vendor/
+    // already did this; admin/ did not, which left eight admin URLs indexable.
+    // A sitemap is not enough on its own: a page absent from the sitemap can
+    // still be crawled from an inbound link.
+const privateDirs = ['admin', 'vendor', 'account', 'js'];
+    const offenders = [];
+    let checked = 0;
+
+    // vendor/register.html is deliberately public and indexable: it is the
+    // vendor signup page, and vendor.html already targets the /vendor route.
+    // Every other page in these directories needs a signed-in session to be
+    // useful, so none of them should be indexed.
+    const PUBLIC_EXCEPTIONS = new Set(['vendor/register.html']);
+
+    for (const dir of ['admin', 'vendor']) {
+      const full = path.join(root, dir);
+      if (!fs.existsSync(full)) continue;
+      for (const entry of fs.readdirSync(full, { withFileTypes: true })) {
+        if (!entry.isFile() || !entry.name.endsWith('.html')) continue;
+        const rel = `${dir}/${entry.name}`;
+        if (PUBLIC_EXCEPTIONS.has(rel)) continue;
+        const text = fs.readFileSync(path.join(root, rel), 'utf8');
+        checked += 1;
+        if (!/<meta name="robots" content="noindex/.test(text)) {
+          offenders.push(`${rel} has no noindex`);
+        }
+      }
+    }
+
+    assert.ok(checked >= 8, `expected to check the admin and vendor pages, checked ${checked}`);
+    assert.deepEqual(offenders, [], `indexable signed-in pages:\n${offenders.join('\n')}`);
+
+    // The signup page must stay indexable: over-applying noindex here would
+    // quietly remove the vendor landing page from search.
+    const signup = fs.readFileSync(path.join(root, 'vendor/register.html'), 'utf8');
+    assert.doesNotMatch(signup, /<meta name="robots" content="noindex/,
+      'vendor/register.html is a public signup page and must remain indexable');
+
+    // The public pages must stay indexable, or this rule could silently
+    // deindex the whole site.
+    for (const page of ['index.html', 'marketplace.html', 'categories.html']) {
+      const text = fs.readFileSync(path.join(root, page), 'utf8');
+      assert.doesNotMatch(text, /<meta name="robots" content="noindex/,
+        `${page} is a public page and must remain indexable`);
+    }
+
+    // account.html is a signed-in page too.
+    const account = fs.readFileSync(path.join(root, 'account.html'), 'utf8');
+    assert.match(account, /<meta name="robots" content="noindex/, 'account.html must be noindex');
+  });
+
+  test('analytics records visits and only exposes totals to an admin', () => {
+    const analytics = read('js/analytics.js');
+    const track = read('js/track.js');
+    const rules = JSON.parse(read('firebase/database.rules.json')).rules;
+
+    // The tracker must be loaded on the public pages, or nothing is recorded.
+    assert.match(track, /trackPageView/, 'track.js must report the page view');
+    assert.match(analytics, /analytics\/unique/, 'unique visitors must be counted');
+    assert.match(analytics, /analytics\/daily/, 'page views must be counted');
+    assert.match(analytics, /runTransaction/, 'the view counter must not lose writes under load');
+
+    // A raw visitor list is personal data. Reading the detail must require an
+    // admin; only the aggregate counters may be public.
+    assert.match(rules.analytics.page_views['.read'], /auth != null/,
+      'the per-visit log must not be publicly readable');
+    assert.match(rules.analytics.unique['.read'], /auth != null/,
+      'the visitor list must not be publicly readable');
+// Assert on the parsed rules for the admin-gated reads, and on the raw JSON for
+    // the literal boolean below: JSON.parse turns `"read": true` into the boolean
+    // true, which a regex against the parsed object would never match.
+    assert.match(rules.analytics.page_views['.read'], /auth != null/,
+      'the per-visit log must not be publicly readable');
+    assert.match(rules.analytics.unique['.read'], /auth != null/,
+      'the visitor list must not be publicly readable');
+
+    const rulesText = read('firebase/database.rules.json');
+    const viewsRead = /"views"\s*:\s*\{[^}]*?"\.read"\s*:\s*(true|false)/.exec(rulesText);
+    assert.ok(viewsRead, 'expected a .read on the daily views counter');
+    assert.equal(viewsRead[1], 'true', 'the daily counter can stay public');
+
+    // Writes are open so anonymous visitors can be counted, so the validation
+    // rules are what stop arbitrary data being injected.
+    assert.match(rules.analytics.unique['$day']['$visitorId']['.validate'], /newData\.val\(\) === true/,
+      'a visitor row may only be the boolean true');
+    assert.match(rules.analytics.daily['$day'].views['.validate'], /isNumber/,
+      'the view counter must stay a number');
+
+    // The admin report page must be gated, not just hidden.
+    const page = read('admin/analytics.html');
+    assert.match(page, /requireAdmin/, 'the analytics report must require an admin');
+    assert.match(page, /recentTraffic/, 'the analytics report must read the traffic data');
+  });
