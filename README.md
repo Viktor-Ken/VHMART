@@ -50,6 +50,29 @@ Moderation is admin-only and enforced in the rules:
 
 A vendor can only ever create their own record as `PENDING`, and cannot move it to `ACTIVE`. An administrator cannot delete their own account, and administrators are excluded from the manageable accounts list, so the last admin cannot be locked out.
 
+### Recovering a locked-out admin
+
+The rules that permit an admin grant to be written normally require the writer to already be an admin. The single exception is the bootstrap email while the `admins` node is still empty. If that node already holds an entry, or the account being granted is not the bootstrap email, there is no in-app way to add an admin and the owner is locked out.
+
+`scripts/grant-admin.js` is the recovery path. It writes both sources of authority so the grant and the display label agree: the `admins/{uid}` entry and the `admin` custom claim.
+
+```sh
+node scripts/grant-admin.js admin@vhmart.com --dry-run
+node scripts/grant-admin.js admin@vhmart.com
+node scripts/grant-admin.js admin@vhmart.com --revoke
+```
+
+It needs Admin SDK credentials, which the browser never has:
+
+| Variable | Value |
+| --- | --- |
+| `GOOGLE_APPLICATION_CREDENTIALS` | path to a service-account JSON key |
+| `FIREBASE_CONFIG` | the same JSON, inline |
+
+Generate a key from Firebase console → Project settings → Service accounts → Generate new private key. Keep the downloaded file out of the repository. The script clears the legacy `FIREBASE_TOKEN` variable if it is set, because the Admin SDK picks it up automatically and it may not carry the right permissions.
+
+The account must sign out and back in afterwards, since custom claims are baked into the ID token at sign-in.
+
 ## Hosting (Cloudflare Pages)
 
 The static site is served by Cloudflare Pages. Firebase still provides Authentication, Realtime Database and Storage; only the static host moved.

@@ -764,3 +764,76 @@ const privateDirs = ['admin', 'vendor', 'account', 'js'];
     assert.doesNotMatch(rules.admins['.read'], /\$uid === auth\.uid/,
       'the whole admins roster must not become readable by any signed-in user');
   });
+
+  test('the admin recovery script is safe to run', () => {
+    const script = read('scripts/grant-admin.js');
+
+    // It writes privileged state, so it must never be reachable from a page.
+    const check = read('scripts/check-publish.js');
+    assert.ok(check.includes("'scripts'"),
+      'the whole scripts directory must be guarded by the publish check');
+    const build = read('scripts/build-publish.js');
+    assert.match(build, /'scripts'/,
+      'staging must exclude the scripts directory that holds this file');
+
+    // An unknown email must be a hard error. Guessing a uid would create an
+    // admin entry belonging to nobody, or worse to the wrong person.
+    assert.match(script, /getUserByEmail/,
+      'the account must be resolved from an email, never guessed from a uid');
+    assert.match(script, /user-not-found/,
+      'an unknown email must abort instead of writing anything');
+
+    // --dry-run must not write.
+    assert.match(script, /dryRun/,
+      'a dry run is required so the operator can see the plan first');
+    const applySection = script.slice(script.indexOf('if (dryRun) {'));
+    assert.match(applySection, /would write/,
+      'the dry-run branch must describe the writes it is skipping');
+
+    // With no credentials it must exit before touching anything.
+    assert.match(script, /if \(!keyFile && !inline\) \{[\s\S]*?process\.exit\(1\)/,
+      'missing credentials must abort before any write is attempted');
+
+    // Both sources of authority must be written together, or the grant and the
+    // label can disagree again - which is what caused the original lockout.
+    assert.match(script, /admins\/\$\{user\.uid\}/,
+      'the admins node entry must be written');
+    assert.match(script, /setCustomUserClaims\(user\.uid, \{ admin: true/,
+      'the admin custom claim must be written too');
+
+    // Revoking must be possible, and must not strip unrelated claims blindly.
+    assert.match(script, /--revoke/, 'there must be a revoke path');
+    assert.match(script, /delete claims\.admin/,
+      'revoking must remove only the admin claim, not the whole claim set');
+
+    // The legacy token variable would silently override the intended credential.
+    assert.match(script, /delete process\.env\.FIREBASE_TOKEN/,
+      'the script must neutralise the legacy FIREBASE_TOKEN override');
+  });
+
+  test('the accounts page cannot get stuck or fail on the admin roster read', () => {
+    const source = read('admin/accounts.html');
+
+    // A rejected read inside Promise.all rejects the whole call. The roster read
+    // is therefore wrapped: it resolved to null instead, and the page carried on.
+    // Without this the accounts tab showed "Could not load accounts" and the
+    // admin-access tab sat on "Loading admin access..." forever.
+    const catches = source.match(/\.catch\(/g) || [];
+    assert.ok(catches.length >= 2, 'both roster reads must be guarded');
+    assert.match(source, /adminsPromise/,
+      'the roster read must be a guarded promise, not a bare get()');
+
+    // The loaders must replace their loading placeholder on failure, or the page
+    // looks stuck rather than reporting a problem.
+    assert.match(source, /Could not load admin access/,
+      'the admin-access loader must report a failure instead of spinning');
+    assert.match(source, /async function renderAdmins/,
+      'loadAdmins must delegate to a wrapped renderer');
+
+    // The claim path must still work when the roster is unreadable, since a
+    // claimed admin is exactly the case where the roster read is denied.
+    assert.match(source, /token\.claims\.admin === true/,
+      'a claim-based admin must still appear when the roster cannot be read');
+    assert.match(source, /adminsForRole && adminsForRole\.exists\(\)/,
+      'a null roster must be handled, not dereferenced');
+  });

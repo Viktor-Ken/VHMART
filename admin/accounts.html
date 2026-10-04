@@ -72,13 +72,37 @@ requireAdmin(async (user, profile) => {const list = document.querySelector('#lis
     loading.textContent = 'Loading admin access...';
     list.append(loading);
 
+    // Any unexpected failure must replace the loading text. Without this the
+    // placeholder stays on screen indefinitely and the page looks stuck.
+    try {
+      await renderAdmins();
+    } catch (error) {
+      console.error(error);
+      list.replaceChildren();
+      const failed = document.createElement('p');
+      failed.className = 'empty';
+      failed.textContent = 'Could not load admin access. Please refresh and try again.';
+      list.append(failed);
+    }
+  }
+
+  async function renderAdmins() {
+
+    // Reading the admins roster needs admin rights already, and a failure here must
+    // not take the page down: Promise.all would reject and leave the "Loading
+    // admin access..." placeholder on screen forever. Resolve to null instead and
+    // carry on with the claim-derived entry.
+    const adminsPromise = get(ref(database, 'admins')).catch((error) => {
+      console.warn('Could not read the admin roster:', error && error.message);
+      return null;
+    });
     const [adminsSnapshot, usersSnapshot, token] = await Promise.all([
-      get(ref(database, 'admins')),
+      adminsPromise,
       get(ref(database, 'users')),
       user.getIdTokenResult()
     ]);
 
-    const granted = adminsSnapshot.exists() ? Object.entries(adminsSnapshot.val()) : [];
+    const granted = adminsSnapshot && adminsSnapshot.exists() ? Object.entries(adminsSnapshot.val()) : [];
     // The signed-in admin may hold a custom claim instead of a list entry, so
     // include them explicitly rather than relying on the users role column.
     const claimAdmins = token.claims.admin === true
@@ -162,17 +186,23 @@ requireAdmin(async (user, profile) => {const list = document.querySelector('#lis
     try {
 // Vendors are read alongside users so one page can approve, reject,
         // suspend and delete any account. An admin may read both nodes.
+        // The roster read is best effort: a denial here must not stop the
+        // accounts list from rendering, it only costs the admin label below.
+        const adminsPromise = get(ref(database, 'admins')).catch((error) => {
+          console.warn('Could not read the admin roster:', error && error.message);
+          return null;
+        });
         const [usersSnapshot, vendorsSnapshot, adminsForRole] = await Promise.all([
           get(ref(database, 'users')),
           get(ref(database, 'vendors')),
-          get(ref(database, 'admins'))
+          adminsPromise
         ]);
         const vendorRecords = vendorsSnapshot.exists() ? vendorsSnapshot.val() : {};
         // Administrator authority lives in the `admins` node and the admin
         // claim, not in users.role. Relying on the role column meant a real
         // administrator granted by claim showed up here as "Customer", which is
         // exactly the mislabelling this page is meant to prevent.
-        const adminIds = new Set(adminsForRole.exists() ? Object.keys(adminsForRole.val()) : []);
+        const adminIds = new Set(adminsForRole && adminsForRole.exists() ? Object.keys(adminsForRole.val()) : []);
         adminIds.add(user.uid);
         const isAdminAccount = (id, account) => account.role === 'admin' || adminIds.has(id);
         list.replaceChildren();
