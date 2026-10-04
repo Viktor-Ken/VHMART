@@ -505,3 +505,51 @@ test('the publish folder is the only thing the static host will serve', () => {
     assert.ok(check.includes('wrangler.toml'), 'the publish check must guard wrangler.toml');
     assert.match(check, /process\.exitCode = 1/, 'the publish check must fail the build, not just warn');
   });
+
+  test('the Cloudflare migration is safe to run', () => {
+    const setup = read('scripts/cloudflare-setup.mjs');
+    const dns = read('scripts/cloudflare-dns.mjs');
+    const ns = read('scripts/namecheap-nameservers.mjs');
+
+    // Every migration script must default to changing nothing. These touch DNS
+    // and hosting, so an accidental bare run must not be able to write.
+    for (const [name, source] of [['cloudflare-setup', setup], ['cloudflare-dns', dns], ['namecheap-nameservers', ns]]) {
+      assert.match(source, /--dry-run|--apply/, `${name} must have an explicit apply flag`);
+      assert.ok(
+        !/process\.argv\.includes\(['"]--apply['"]\)\s*\)?\s*\?\s*true|apply\s*=\s*true/.test(source),
+        `${name} must never default to applying changes`
+      );
+    }
+
+    // Cutting delegation over before Cloudflare serves would take a site that is
+    // currently erroring down to one that returns nothing.
+    assert.match(ns, /Refusing to switch nameservers/, 'the nameserver change must be gated on the site serving');
+assert.match(ns, /cloudflareIsServing/, 'the gate must actually probe the Pages project');
+    // Asserting the string "--restore" is not enough: it also appears in the help
+    // text, so it would survive the restore path being disabled. Require the flag
+    // to be read into the variable the script branches on.
+    assert.match(ns, /const\s+restore\s*=\s*process\.argv\.includes\(\s*['"]--restore['"]\s*\)/,
+      'the restore path must be driven by a real --restore flag');
+    assert.match(ns, /if\s*\(\s*restore\s*\)/, 'the restore path must actually branch on that flag');
+
+// setHosts replaces a whole zone and only works on Namecheap-managed DNS.
+    // The domain is on Netlify nameservers, so delegation is the correct change.
+    // Check for an actual call, not the word appearing in a comment explaining
+    // why it is not used.
+    assert.match(ns, /domains\.dns\.setCustom/, 'the nameserver change must use setCustom');
+    assert.ok(
+      !/call\(\s*['"]namecheap\.domains\.dns\.setHosts['"]/.test(ns),
+      'setHosts must not be used to migrate this domain'
+    );
+
+    // Mail and verification records must never be deleted by a hosting move.
+    assert.match(dns, /protectedTypes/, 'the DNS script must guard non-host records');
+    assert.ok(dns.includes("'MX'") && dns.includes("'TXT'"), 'MX and TXT must be explicitly protected');
+    assert.match(dns, /never touch|refuses/i, 'the guard must be explained to the operator');
+
+    // A stale publish folder would create a Pages project serving nothing.
+    assert.match(setup, /public.*index\.html|index\.html/, 'setup must verify the build output exists first');
+
+    // The verification file keeps Search Console property verification alive.
+    assert.match(setup, /verification/i, 'setup must check the Search Console verification file');
+  });

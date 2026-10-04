@@ -29,6 +29,37 @@ No dependency install is needed for the build. `scripts/build-publish.js`, `scri
 
 The build publishes `public/`, which stages only site files. This is deliberate. Uploading a folder publishes its whole contents, and during the earlier Netlify setup both `.netlifyignore` and `.gitignore` were ignored during upload, which exposed `firebase/database.rules.json` and `package.json`. `scripts/check-publish.js` fails the build if any such path appears in the output.
 
+## Moving off Netlify
+
+Three scripts cover the move. All of them default to changing nothing and need an explicit `--apply`, because DNS and delegation are not casually reversible.
+
+```sh
+node scripts/cloudflare-setup.mjs --dry-run   # plan: project, build settings, domain
+node scripts/cloudflare-dns.mjs --dry-run     # plan: the CNAMEs and what is removed
+node scripts/namecheap-nameservers.mjs        # read the current delegation
+```
+
+Credentials come from the environment, never from a file in the repository:
+
+| Variable | Needed for |
+| --- | --- |
+| `CLOUDFLARE_API_TOKEN` | project creation and DNS records |
+| `CLOUDFLARE_ACCOUNT_ID` | project creation |
+| `NAMECHEAP_API_USER` | reading and changing delegation |
+| `NAMECHEAP_API_KEY` | reading and changing delegation |
+| `NAMECHEAP_CLIENT_IP` | required if the IP is not already whitelisted |
+
+Order of operations, because two of these steps depend on the one before:
+
+1. `cloudflare-setup.mjs --apply` creates the Pages project and attaches the domain.
+2. `cloudflare-dns.mjs --apply` writes the CNAMEs and removes the Netlify records.
+3. Confirm `<project>.pages.dev` serves the site.
+4. `namecheap-nameservers.mjs --apply` switches delegation to Cloudflare.
+
+`namecheap-nameservers.mjs` refuses to run step 4 unless the Pages project is already serving, and `--restore` puts the previous Netlify nameservers back.
+
+Two details worth knowing. Namecheap's `domains.dns.setHosts` is not usable here: it only works on domains using Namecheap's own DNS and it replaces the entire record set, so changing delegation with `setCustom` is the correct mechanism. And the DNS script will not delete `MX`, `TXT`, `SRV` or `CAA` records even if they exist, so a hosting move cannot silently break email.
+
 ## Data model
 
 Use `users/{uid}`, `vendor_applications/{id}`, `vendors/{vendorId}`, `products/{productId}`, `product_images/{productId}/{imageId}`, `categories/{categoryId}`, `enquiries/{id}`, `favourites/{uid}/{productId}`, `reports/{id}` and `audit_logs/{id}`. Public reads are limited to active vendors, published products and active categories.
