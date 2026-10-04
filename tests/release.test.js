@@ -727,3 +727,40 @@ const privateDirs = ['admin', 'vendor', 'account', 'js'];
     assert.match(accounts, /if \(id === user\.uid\)/,
       'self-deletion must stay blocked');
   });
+
+  test('the bootstrap admin path is reachable, not dead code', () => {
+    const auth = read('js/auth.js');
+    const rules = JSON.parse(read('firebase/database.rules.json')).rules;
+
+    // The deadlock: isAdmin() read admins/{uid}, which the rules only allowed for
+    // someone already listed there. An administrator holding no grant was denied
+    // the read, so the bootstrap fallback below it never ran and the account could
+    // never write its own entry to get in. Symptom: "no administrator grant" for
+    // an account that is supposed to be the owner.
+    const own = rules.admins.$uid['.read'];
+    assert.ok(own, 'admins must grant a per-uid read rule');
+    assert.match(own, /\$uid === auth\.uid/,
+      'a user must be able to read their own admin entry, or isAdmin() cannot find it');
+
+    // The client must attempt the bootstrap grant rather than reading the whole
+    // roster, which needs admin rights already and so cannot be a fallback.
+    const fn = /export async function isAdmin\([\s\S]*?\n}/.exec(auth);
+    assert.ok(fn, 'isAdmin must exist');
+    assert.match(fn[0], /set\(ref\(database, `admins\/\$\{user\.uid\}`\)/,
+      'isAdmin must be able to write its own bootstrap entry');
+    assert.doesNotMatch(fn[0], /get\(ref\(database, 'admins'\)\)/,
+      'reading the whole admins node needs admin rights and cannot serve as a fallback');
+
+    // The escape hatch must stay narrow: own uid, bootstrap email, empty node.
+    const write = rules.admins.$uid['.write'];
+    assert.match(write, /auth\.token\.email === 'admin@vhmart\.com'/,
+      'the bootstrap grant must be limited to the bootstrap email');
+    assert.match(write, /\$uid === auth\.uid/,
+      'the bootstrap grant must only ever write its own entry');
+    assert.match(write, /!root\.child\('admins'\)\.exists\(\)/,
+      'the bootstrap grant must stop working once any admin exists');
+
+    // The roster itself must stay private.
+    assert.doesNotMatch(rules.admins['.read'], /\$uid === auth\.uid/,
+      'the whole admins roster must not become readable by any signed-in user');
+  });

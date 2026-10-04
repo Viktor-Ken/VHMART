@@ -341,7 +341,47 @@ test('a normal user cannot promote themselves to admin', async () => {
   await assertFails(db.ref('users/customer1').update({ role: 'admin' }));
 });
 
-test('an admin granted through the admins node can act as an admin', async () => {
+test('the bootstrap admin can grant itself, and nobody else can', async () => {
+    // The deadlock this covers: isAdmin() read admins/{uid}, which the rules only
+    // permitted for someone already listed there. A real administrator holding no
+    // grant was therefore denied the read, never reached the bootstrap fallback,
+    // and could never write their own entry to get in.
+    await fresh();
+
+    const boot = asUser('boot1', ADMIN);
+
+    // Reading one's own entry must be allowed, so isAdmin() can find it.
+    await assertSucceeds(boot.ref('admins/boot1').once('value'),
+      'a user must be able to read their own admin entry');
+
+    // And the bootstrap grant must actually succeed while admins is empty.
+    await assertSucceeds(boot.ref('admins/boot1').set({ email: ADMIN, grantedAt: Date.now() }),
+      'the bootstrap admin must be able to grant itself');
+    await assertSucceeds(boot.ref('users/customer1').update({ active: false }),
+      'the bootstrapped admin can then moderate accounts');
+
+    // Once admins exists, the bootstrap email loses its backdoor.
+    await assertFails(
+      asUser('boot2', ADMIN).ref('admins/boot2').set({ email: ADMIN, grantedAt: Date.now() }),
+      'the bootstrap grant must not be repeatable'
+    );
+
+    // A non-admin must still not be able to grant themselves, nor read the roster.
+    const nobody = asUser('customer1', 'casey@example.com');
+    await assertFails(
+      nobody.ref('admins/customer1').set({ email: 'casey@example.com', grantedAt: Date.now() }),
+      'a customer must not be able to grant themselves admin'
+    );
+    await assertFails(nobody.ref('admins').once('value'), 'the admin roster must stay private');
+
+    // Knowing the bootstrap email must not grant read access to someone else.
+    await assertFails(
+      asUser('impostor', ADMIN).ref('admins/boot1').once('value'),
+      'sharing the bootstrap email must not expose another admin entry'
+    );
+  });
+
+  test('an admin granted through the admins node can act as an admin', async () => {
   await fresh();
   await seed({ 'admins/staff1': { email: 'staff1@vhmart.com', grantedAt: Date.now() } });
   const staff = asUser('staff1', 'staff1@vhmart.com');

@@ -1,6 +1,6 @@
 import { auth, database } from './firebase.js';
 import { onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/12.10.0/firebase-auth.js';
-import { get, ref } from 'https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js';
+import { get, ref, set } from 'https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js';
 
 // Admin access has three sources, all of which the database rules honour:
 //   1. an `admin` custom claim, granted with scripts/set-role.js
@@ -19,10 +19,25 @@ export async function isAdmin(user, token) {
     try {
         const snapshot = await get(ref(database, `admins/${user.uid}`));
         if (snapshot.exists()) return true;
-        const all = await get(ref(database, 'admins'));
-        if (!all.exists()) return isAdminEmail(user);
     } catch (error) {
         console.warn('Could not verify admin access:', error && error.message);
+        return false;
+    }
+    // Reading the whole `admins` node needs admin rights already, so it is not a
+    // usable fallback here: it fails for exactly the people who still need to be
+    // let in. Attempt the bootstrap write instead. The rules allow it only for
+    // ADMIN_EMAIL, only for one's own uid, and only while `admins` is empty, so
+    // this cannot escalate an existing admin or hand out a second grant.
+    if (isAdminEmail(user)) {
+        try {
+            await set(ref(database, `admins/${user.uid}`), {
+                email: user.email,
+                grantedAt: Date.now()
+            });
+            return true;
+        } catch (error) {
+            console.warn('Bootstrap admin grant failed:', error && error.message);
+        }
     }
     return false;
 }
