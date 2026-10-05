@@ -485,3 +485,35 @@ test('a soft-deleted vendor storefront is no longer publicly readable', async ()
   await assertFails(asGuest().ref('vendors/vendor1').once('value'), 'deleted vendors must be private');
   await assertSucceeds(asUser('vendor1', 'vic@example.com').ref('vendors/vendor1').once('value'), 'the owner can still see it');
 });
+
+  test('an admin can read the whole users and vendors list', async () => {
+    // The accounts page reads users and vendors as whole nodes to build the
+    // moderation list. A .read on users/{uid} only grants that one child, so
+    // without a node-level rule the aggregate read is denied for every account
+    // and the page reports "Could not load accounts" no matter who is signed in.
+    await fresh();
+
+    const admin = asAdmin();
+    await assertSucceeds(admin.ref('users').once('value'), 'an admin must be able to list every account');
+    await assertSucceeds(admin.ref('vendors').once('value'), 'an admin must be able to list every vendor');
+
+    // A granted admin node entry must work too, not just the claim.
+    await seed({ 'admins/staff1': { email: 'staff1@vhmart.com', grantedAt: Date.now() } });
+    await assertSucceeds(
+      asUser('staff1', 'staff1@vhmart.com').ref('users').once('value'),
+      'an admin listed in the admins node must be able to list accounts'
+    );
+
+    // And it must stay closed to everyone else. A customer reading the whole
+    // user list would expose every account, so this is the important half.
+    const customer = asUser('customer1', 'casey@example.com');
+    await assertFails(customer.ref('users').once('value'), 'a customer must not list every account');
+    await assertFails(customer.ref('vendors').once('value'), 'a customer must not list every vendor');
+
+    // A signed-out visitor must be refused as well.
+    await assertFails(asGuest().ref('users').once('value'), 'a guest must not list accounts');
+
+    // Reading one's own record must still work for a customer: that path does not
+    // depend on the node-level rule.
+    await assertSucceeds(customer.ref('users/customer1').once('value'), 'a customer must still read their own profile');
+  });
