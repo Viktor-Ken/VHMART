@@ -966,3 +966,43 @@ const privateDirs = ['admin', 'vendor', 'account', 'js'];
     assert.match(build, /await import\('\/js\/contact-vendor\.js'\)/,
       'the contact module must be imported on demand');
   });
+
+  test('an enquiry reaches the vendor without needing a mail server', () => {
+    const panel = read('js/contact-vendor.js');
+    const inbox = read('vendor/enquiries.html');
+    const links = read('js/contact-links.js');
+
+    // Two delivery paths, neither of which needs a backend: a durable record in
+    // the vendor's own dashboard, and a prefilled WhatsApp or email handoff.
+    // Sending real email would require Cloud Functions and a paid plan, which
+    // this project deliberately does not use.
+    assert.match(panel, /recordEnquiry/,
+      'the enquiry must be stored so the vendor has a durable copy');
+    assert.match(panel, /withPrefilledMessage/,
+      'the WhatsApp or email handoff must carry context, not open a blank compose box');
+
+    // Only channels that can carry a body may be prefilled; a social or website
+    // link cannot, and pretending otherwise would corrupt the URL.
+// Assert the branches rather than the literal text: the code builds these URLs
+    // with template strings, so matching a single-line pattern proves nothing.
+    assert.match(links, /startsWith\('https:\/\/wa\.me\/'\)/,
+      'a WhatsApp handoff must prefill the message');
+    assert.match(links, /startsWith\('mailto:'\)/,
+      'an email handoff must prefill subject and body');
+    assert.match(links, /return url;/,
+      'a channel that cannot carry a body must be returned unchanged');
+
+    // The vendor has to know how the customer wants to be reached. The message
+    // text is generated, so the channel only appears if the inbox reads the field.
+    assert.match(inbox, /CHANNEL_LABELS/,
+      'the vendor inbox must label the chosen channel');
+    assert.match(inbox, /item\.channel/,
+      'the vendor inbox must display the channel');
+    // Pre-existing enquiries have no channel and must still render.
+    assert.match(inbox, /if \(item\.channel\)/,
+      'older enquiries without a channel must not break the inbox');
+
+    // Reply details the vendor needs to answer.
+    assert.match(inbox, /customerEmail/, 'the vendor must see how to reply by email');
+    assert.match(inbox, /productName|productId/, 'the vendor must see which product was asked about');
+  });

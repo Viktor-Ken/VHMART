@@ -38,7 +38,10 @@ requireUser(async (user, profile) => {
     if (!snapshot.exists()) {
       snapshot = await get(query(ref(database, 'enquiries'), orderByChild('vendorId'), equalTo(user.uid)));
     }
-    const entries = snapshot.exists() ? Object.entries(snapshot.val()).map(([id, item]) => ({ id, ...item })).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)) : [];
+    // Kept in step with the customer-facing list in js/contact-links.js, and reused
+// by the rules which constrain channel to exactly these keys.
+const CHANNEL_LABELS = { whatsapp: 'WhatsApp', phone: 'Phone', email: 'Email', facebook: 'Facebook', instagram: 'Instagram', twitter: 'X (Twitter)', tiktok: 'TikTok', youtube: 'YouTube', linkedin: 'LinkedIn', website: 'Website' };
+  const entries = snapshot.exists() ? Object.entries(snapshot.val()).map(([id, item]) => ({ id, ...item })).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)) : [];
     root.replaceChildren();
     if (!entries.length) { showMessage('No enquiries yet. Customer enquiries will appear here.'); return; }
     entries.forEach((item) => {
@@ -46,6 +49,10 @@ requireUser(async (user, profile) => {
       const title = document.createElement('h2'); title.textContent = item.customerName || 'Customer enquiry';
       const product = document.createElement('p'); product.textContent = `Product: ${item.productName || item.productId || 'Not specified'}`;
       const email = document.createElement('p'); if (item.customerEmail) email.textContent = `Email: ${item.customerEmail}`;
+      // The customer chose how to be reached, and that choice is not recorded in
+      // the message text, so surface it explicitly. Enquiries sent before the
+      // channel field existed have none.
+      if (item.channel) { const via = document.createElement('p'); via.className = 'enquiry-channel'; via.textContent = `Preferred contact: ${CHANNEL_LABELS[item.channel] || item.channel}`; card.append(via); }
       const message = document.createElement('p'); message.textContent = item.message || 'No message supplied.';
       const status = document.createElement('p'); status.textContent = `Status: ${item.status || 'NEW'}`;
       const button = document.createElement('button'); button.className = 'button button--quiet'; button.type = 'button'; button.textContent = item.status === 'RESPONDED' ? 'Responded' : 'Mark responded'; button.disabled = item.status === 'RESPONDED';

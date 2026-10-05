@@ -1,6 +1,6 @@
 import { auth, database } from './firebase.js';
 import { get, ref, push, set, serverTimestamp } from 'https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js';
-import { contactChannels } from './contact-links.js';
+import { contactChannels, withPrefilledMessage } from './contact-links.js';
 
 // Customer-facing "contact vendor" panel.
 //
@@ -101,7 +101,15 @@ export function renderContactPanel(mount, context) {
       });
       // Opened only after the terms were accepted and the enquiry stored, so the
       // vendor has a record before the customer leaves the site.
-      window.open(picked.channel.url, '_blank', 'noopener,noreferrer');
+      //
+      // The body is prefilled where the channel supports one, so a WhatsApp or
+      // email handoff arrives with context instead of a blank compose box. The
+      // enquiry record in the vendor dashboard remains the durable copy.
+      const outgoing = withPrefilledMessage(
+        picked.channel.url,
+        `Hi${vendorName ? `, this is a customer via VHMART` : ''}. I would like to ask about "${String(productName || 'your listing').slice(0, 120)}" on VHMART.`
+      );
+      window.open(outgoing, '_blank', 'noopener,noreferrer');
       status.textContent = 'Enquiry sent. Your contact method opened in a new tab.';
     } catch (error) {
       console.error(error);

@@ -91,4 +91,21 @@ export function contactChannels(vendor) {
   return channels;
 }
 
+// Prefills the outgoing message on channels that support it, so the vendor is
+// not dropped into a blank chat with no idea which product prompted it.
+//
+// Only wa.me and mailto accept a body. A social or website link cannot carry
+// one, and tel: cannot either, so those are returned unchanged.
+export function withPrefilledMessage(url, message) {
+  const text = String(message == null ? '' : message).replace(/\s+/g, ' ').trim().slice(0, 400);
+  if (!text) return url;
+  if (url.startsWith('https://wa.me/')) {
+    return `${url}?text=${encodeURIComponent(text)}`;
+  }
+  if (url.startsWith('mailto:')) {
+    return `${url}?subject=${encodeURIComponent('VHMART enquiry')}&body=${encodeURIComponent(text)}`;
+  }
+  return url;
+}
+
 export { LABELS, ORDER };
