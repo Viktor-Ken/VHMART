@@ -8,7 +8,14 @@
     avatar.className = 'brand-avatar';
     avatar.setAttribute('aria-label', 'Open VisuaHealth Market logo');
     const thumb = document.createElement('img');
-    thumb.src = logo; thumb.alt = 'VisuaHealth Market logo'; thumb.loading = 'lazy';
+    // Not lazy: this sits in the site header and is visible immediately. A
+    // loading="lazy" here deferred a 5 KB image that was on screen from the first
+    // frame, and it was the last request to finish before first paint. The page
+    // preloads it in the head instead, so it is already in flight by the time
+    // this script runs. The enlarged copy inside the hidden popup keeps its own
+    // lazy behaviour, since it is not shown until the visitor clicks.
+    thumb.src = logo; thumb.alt = 'VisuaHealth Market logo';
+    thumb.decoding = 'async';
     avatar.append(thumb);
     const popup = document.createElement('div');
     popup.id = 'avatarPopup';
@@ -20,7 +27,10 @@
     const close = document.createElement('button');
     close.type = 'button'; close.className = 'avatar-popup-close'; close.setAttribute('aria-label', 'Close'); close.textContent = '×';
     const big = document.createElement('img');
-    big.src = logo; big.alt = 'VisuaHealth Market logo';
+    // Stays lazy: this copy is only shown after the visitor clicks the logo, so
+    // fetching the larger asset on every page view would waste bandwidth for
+    // something most visitors never open.
+    big.src = logo; big.alt = 'VisuaHealth Market logo'; big.loading = 'lazy'; big.decoding = 'async';
     popup.append(close, big);
     function openPopup() { popup.hidden = false; }
     function closePopup() { popup.hidden = true; }

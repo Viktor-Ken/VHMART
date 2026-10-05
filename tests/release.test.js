@@ -1200,3 +1200,31 @@ assert.ok(existsSync(file), `${file} must exist`);
       'the optimiser and the check must use the same budget, or the check fails files it just wrote'
     );
   });
+
+  test('the header logo is preloaded and not deferred', () => {
+    // js/brand-avatar.js injects the logo and is loaded at the end of the body,
+    // so the browser only discovered the image after the stylesheet and the fonts
+    // had arrived. It then became the last request to finish before first paint.
+    assert.match(read('index.html'), /rel="preload"[^>]*logo\.webp/,
+      'the header logo must be preloaded on the hand-written pages');
+    assert.match(read('scripts/build-seo.js'), /rel="preload"[^>]*logo\.webp/,
+      'the generated product pages load brand-avatar.js too, so they need it as well');
+
+    // It is in the site header and visible from the first frame, so lazy loading
+    // it deferred an image that was already on screen.
+// Strip comments first: the explanation above the thumbnail mentions the old
+    // loading="lazy" value, and matching against it would test the prose.
+    const avatar = read('js/brand-avatar.js').replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, '');
+    const thumb = /const thumb = document\.createElement\('img'\);([\s\S]*?)avatar\.append\(thumb\);/.exec(avatar);
+    assert.ok(thumb, 'the header thumbnail must be locatable');
+    assert.doesNotMatch(thumb[1], /loading\s*=\s*['"]lazy['"]/,
+      'a logo visible in the header must not be lazy loaded');
+    assert.match(thumb[1], /decoding = 'async'/,
+      'the logo must not block decoding on first paint');
+
+    // The enlarged copy only appears after a click, so it keeps lazy loading.
+    const big = /const big = document\.createElement\('img'\);([\s\S]*?)popup\.append\(close, big\);/.exec(avatar);
+    assert.ok(big, 'the popup image must be locatable');
+    assert.match(big[1], /loading\s*=\s*['"]lazy['"]/,
+      'the popup image is hidden until clicked and should stay lazy');
+  });

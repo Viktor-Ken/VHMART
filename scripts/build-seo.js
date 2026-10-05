@@ -222,7 +222,8 @@ ${imageUrl ? `<meta name="twitter:image" content="${escapeXml(absolute(imageUrl)
 <script type="application/ld+json">${productStructuredData(product, imageUrl, categoryId)}</script>
 <link rel="preload" href="/fonts/DMSans-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/SpaceGrotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="/Visuamall/general/hero.webp" as="image">
+<link rel="preload" href="/Visuamall/logo.webp" as="image" type="image/webp">
+<link rel="preload" href="/Visuamall/general/hero.webp" as="image" type="image/webp">
 <link rel="stylesheet" href="/css/main.css">
 </head>
 <body class="product-static">

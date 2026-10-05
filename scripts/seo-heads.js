@@ -189,6 +189,11 @@ function buildBlock(config) {
   // contentful paint waits on them. Preloading says "fetch now, in parallel".
   lines.push('<link rel="preload" href="/fonts/DMSans-latin.woff2" as="font" type="font/woff2" crossorigin>');
   lines.push('<link rel="preload" href="/fonts/SpaceGrotesk-latin.woff2" as="font" type="font/woff2" crossorigin>');
+  // js/brand-avatar.js injects the header logo, and it is loaded at the end of
+  // the body, so the browser only discovered the image after the stylesheet and
+  // the fonts had already arrived. It then became the last request to finish
+  // before first paint. Preloading states the dependency up front.
+  lines.push('<link rel="preload" href="/Visuamall/logo.webp" as="image" type="image/webp">');
 
   lines.push(`<meta property="og:type" content="website">`);
   lines.push(`<meta property="og:site_name" content="${escapeHtml(SITE_NAME)}">`);
