@@ -1050,14 +1050,29 @@ test('nothing above the fold blocks the first paint', () => {
     assert.ok(existsSync('public/fonts/DMSans-latin.woff2'),
       'the fonts must be staged into the publish output');
 
-// An image referenced by a stylesheet is only discovered after the CSS
-    // arrives, so the hero is preloaded explicitly. Assert the preloaded path
-    // actually exists rather than naming an extension, since the optimiser
-    // rewrites these files to webp.
+// Anything the stylesheet references is only discovered once css/main.css has
+    // parsed, which is after the header is already part of the first paint. So
+    // every preload on the page must resolve to a file that exists - a preload
+    // pointing at a missing or renamed asset wastes a request and warns in the
+    // console, and one that silently 404s looks like it worked.
+    const preloads = [...read('index.html').matchAll(/<link rel="preload"[^>]*href="([^"]+)"/g)].map((m) => m[1]);
+    assert.ok(preloads.length >= 5, `expected several preloads, found ${preloads.length}`);
+    for (const href of preloads) {
+      // Percent-encoded, because the header background filename contains a space.
+      assert.ok(existsSync(decodeURIComponent(href).slice(1)),
+        `preloaded path does not exist: ${href}`);
+    }
+
+    // The two CSS backgrounds were the last resources finishing before paint, so
+    // they must be preloaded rather than left to be discovered mid-render.
     const heroPreload = /rel="preload"[^>]*href="(\/Visuamall\/general\/hero\.[a-z]+)"/.exec(build);
     assert.ok(heroPreload, 'the hero background must be preloaded so it does not queue behind the CSS');
-    assert.ok(existsSync(heroPreload[1].slice(1)),
-      `the preloaded hero must exist: ${heroPreload[1]}`);
+    assert.match(read('scripts/seo-heads.js'), /bg%202\.jpg/,
+      'the sticky header background must be preloaded');
+
+    // The generated product pages carry the same set.
+    assert.match(build, /bg%202\.jpg/, 'generated pages must preload the header background too');
+    assert.match(build, /logo\.webp/, 'generated pages must preload the logo too');
   });
 
   test('the heaviest images are converted and not shipped oversized', () => {
@@ -1154,7 +1169,9 @@ assert.ok(existsSync(file), `${file} must exist`);
     for (const file of files) {
       const text = fs.readFileSync(path.join(root, file), 'utf8');
       for (const match of text.matchAll(pattern)) {
-        if (!existsSync(match[1])) dangling.push(`${file} -> ${match[1]}`);
+        // decodeURIComponent because a URL may percent-encode a space in a filename, as
+      // the preload for the header background does. The file on disk has a space.
+      if (!existsSync(decodeURIComponent(match[1]))) dangling.push(`${file} -> ${match[1]}`);
       }
     }
     assert.deepEqual(dangling, [], `images referenced but not on disk:\n${dangling.join('\n')}`);

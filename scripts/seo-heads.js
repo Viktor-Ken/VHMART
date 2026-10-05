@@ -194,6 +194,12 @@ function buildBlock(config) {
   // the fonts had already arrived. It then became the last request to finish
   // before first paint. Preloading states the dependency up front.
   lines.push('<link rel="preload" href="/Visuamall/logo.webp" as="image" type="image/webp">');
+  // The sticky header's background is set in css/main.css, so it is only
+  // discovered once that stylesheet has parsed, by which point the header is
+  // already part of the first paint. These two were the last resources to finish
+  // before first paint at around 1.7s, leaving only a small margin.
+  lines.push('<link rel="preload" href="/Visuamall/general/bg%202.jpg" as="image">');
+  lines.push('<link rel="preload" href="/Visuamall/general/hero.webp" as="image" type="image/webp">');
 
   lines.push(`<meta property="og:type" content="website">`);
   lines.push(`<meta property="og:site_name" content="${escapeHtml(SITE_NAME)}">`);

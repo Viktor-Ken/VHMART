@@ -29,18 +29,25 @@ async function exists(file) {
 
 const PATTERN = /(?:\.\/|\/)?(Visuamall\/[^"'()\s<>,;{}]+\.(?:png|jpe?g|webp|avif|gif|svg))/g;
 
+// A URL may percent-encode a space in a filename, as the preload for the header
+// background does. The file on disk has the literal space, so the path has to be
+// decoded before it can be looked up - otherwise a perfectly valid reference is
+// reported as missing.
+const onDisk = (rel) => exists(path.join(root, decodeURIComponent(rel)));
+
 let dangling = 0;
 for (const file of texts) {
   const text = await readFile(file, 'utf8');
   for (const match of text.matchAll(PATTERN)) {
     const rel = match[1];
-    if (!(await exists(path.join(root, rel)))) {
+    if (!onDisk(rel)) {
       // A renamed asset keeps its stem, so point at the replacement rather than
       // only reporting it. Deriving this from the filesystem rather than from
       // `git status` matters: once a rename has been committed, git no longer
       // reports the old path as deleted and the reference is missed entirely.
-      const dir = rel.slice(0, rel.lastIndexOf('/'));
-      const stem = rel.slice(dir.length + 1).replace(/\.(png|jpe?g|bmp|gif)$/i, '');
+      const decoded = decodeURIComponent(rel);
+      const dir = decoded.slice(0, decoded.lastIndexOf('/'));
+      const stem = decoded.slice(dir.length + 1).replace(/\.(png|jpe?g|bmp|gif)$/i, '');
       let fixed = false;
       for (const candidate of ['webp', 'avif']) {
         const replacement = `${dir}/${stem}.${candidate}`;
