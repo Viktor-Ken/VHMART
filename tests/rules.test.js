@@ -517,3 +517,58 @@ test('a soft-deleted vendor storefront is no longer publicly readable', async ()
     // depend on the node-level rule.
     await assertSucceeds(customer.ref('users/customer1').once('value'), 'a customer must still read their own profile');
   });
+
+test('a contact enquiry must name a real channel and record the terms acceptance', async () => {
+    await fresh();
+    const customer = asUser('customer1', 'casey@example.com');
+
+    // An enquiry is only writable for a live product belonging to an active
+    // vendor, so arrange exactly that rather than weakening the rule.
+    await seed({ 'products/p1': { ownerUid: 'vendor1', vendorId: 'vendor1', name: 'Scrubs', categoryId: 'general', status: 'PUBLISHED' } });
+
+    const base = {
+      productId: 'p1',
+      vendorId: 'vendor1',
+      customerUid: 'customer1',
+      message: 'Contact request for "Scrubs" via whatsapp.',
+      status: 'NEW',
+      createdAt: 1700000000000
+    };
+
+    // The normal path: a channel plus a terms timestamp.
+    await assertSucceeds(
+      customer.ref('enquiries/e1').set({ ...base, channel: 'whatsapp', termsAcceptedAt: 1700000000000 }),
+      'a contact enquiry must be allowed'
+    );
+
+    // Channel is a fixed set. Free text here would be written straight to a
+    // vendor-facing surface, so anything unrecognised is rejected.
+    await assertFails(
+      customer.ref('enquiries/e2').set({ ...base, channel: 'javascript' }),
+      'an invented channel must be rejected'
+    );
+
+    // Terms acceptance must be a timestamp, not an arbitrary value.
+    await assertFails(
+      customer.ref('enquiries/e3').set({ ...base, channel: 'email', termsAcceptedAt: 'yes' }),
+      'termsAcceptedAt must be a number'
+    );
+
+    // The acceptance is optional so pre-existing enquiries stay valid, but a
+    // customer cannot forge the vendorId or productId pairing.
+    await assertSucceeds(
+      customer.ref('enquiries/e4').set(base),
+      'an enquiry without a channel is still valid'
+    );
+    await assertFails(
+      customer.ref('enquiries/e5').set({ ...base, vendorId: 'vendor2' }),
+      'a customer must not enquire about another vendors product'
+    );
+
+    // The vendor still owns and reads their own enquiries.
+    await assertSucceeds(asUser('vendor1', 'vic@example.com').ref('enquiries/e1').once('value'),
+      'the vendor must be able to read the enquiry');
+    // And a different vendor must not.
+    await assertFails(asUser('vendor2', 'dana@example.com').ref('enquiries/e1').once('value'),
+      'another vendor must not read it');
+  });

@@ -29,7 +29,8 @@
     <p class="product-price">₦3,500</p>
     <p>Used to determine the body temperature of the body.</p>
     <p><small>hospital-lab-equipment | AVAILABLE | Sold by an independent VHMART vendor. Message the vendor directly to ask about this product.</small></p>
-    <p><a href="/contact">Ask about this product</a></p>
+    <p><button type="button" class="button button--primary" data-contact-vendor>Contact vendor</button></p>
+    <div data-contact-mount></div>
   </div>
 </article>
 </main>
@@ -37,5 +38,37 @@
 <script src="/js/brand-avatar.js"></script>
 <script src="/js/theme.js"></script>
 <script src="/js/track.js"></script>
+<script type="module">
+// The page itself is static so a crawler can read it without running JavaScript.
+// Contacting the vendor needs the vendor's live contact details, so that part is
+// added here. The module pulls in the Firebase SDK, so it is only imported when
+// the customer actually asks to contact the vendor.
+
+const trigger = document.querySelector('[data-contact-vendor]');
+const mount = document.querySelector('[data-contact-mount]');
+if (trigger && mount) {
+  trigger.addEventListener('click', async () => {
+    trigger.disabled = true;
+    try {
+      const { renderContactPanel } = await import('/js/contact-vendor.js');
+      mount.replaceChildren();
+      renderContactPanel(mount, {
+        vendorId: "YZOHniQS7nbZDYBJKEHXXS9jWPC3",
+        productId: "-P15ryP7q0nx9ScC_F5u",
+        productName: "Digital thermometer",
+        termsUrl: '/terms-and-conditions.html'
+      });
+      trigger.remove();
+    } catch (error) {
+      console.error(error);
+      trigger.disabled = false;
+      const failed = document.createElement('p');
+      failed.className = 'error';
+      failed.textContent = 'We could not load the contact options. Please try again.';
+      mount.replaceChildren(failed);
+    }
+  });
+}
+</script>
 </body>
 </html>

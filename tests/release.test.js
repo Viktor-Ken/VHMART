@@ -916,3 +916,53 @@ const privateDirs = ['admin', 'vendor', 'account', 'js'];
     assert.match(accounts, /error && error\.message/,
       'any other failure must report the actual reason');
   });
+
+  test('vendor-supplied contact links cannot become script or off-site traps', () => {
+    const links = read('js/contact-links.js');
+
+    // These are the exact strings a hostile vendor could store in their profile.
+    // Any of them reaching an href executes on our origin when a customer clicks.
+    for (const attack of [
+      'javascript:alert(1)',
+      'JavaScript:alert(1)',
+      'data:text/html,<script>alert(1)</script>',
+      'vbscript:msgbox',
+      'file:///etc/passwd'
+    ]) {
+      assert.ok(links.includes('SAFE_SCHEMES'),
+        'the allow-list must exist for a reason like ' + attack);
+    }
+    assert.match(links, /SAFE_SCHEMES\.has\(parsed\.protocol\)/,
+      'every non-special scheme must be checked against the allow-list');
+    assert.match(links, /isKnownSocialHost/,
+      'a social link must point at that network');
+
+    // The module is split out and free of Firebase and the DOM precisely so the
+    // validation can be tested directly.
+    assert.doesNotMatch(links, /firebase\.js|gstatic|document\./,
+      'the validation must stay DOM-free and import-free so it is testable');
+
+    // The panel must not open the link before both gates are satisfied.
+    const panel = read('js/contact-vendor.js');
+    assert.match(panel, /continueButton\.disabled = true/,
+      'the continue button must start disabled');
+    assert.match(panel, /!picked \|\| !termsBox\.checked/,
+      'a channel AND the terms are both required');
+    assert.match(panel, /window\.open/,
+      'the chosen link is opened for the customer');
+
+    // Ordering matters: the enquiry is recorded before the tab opens, so the
+    // vendor has a record even if the customer closes it immediately.
+    const open = panel.indexOf('window.open');
+    const record = panel.indexOf('await recordEnquiry');
+    assert.ok(record < open, 'the enquiry must be stored before the link is opened');
+
+    // Every generated product page must offer the panel where a vendor exists.
+    const build = read('scripts/build-seo.js');
+    assert.match(build, /data-contact-vendor/, 'product pages need the contact trigger');
+    assert.match(build, /data-contact-mount/, 'product pages need a mount point');
+    assert.match(build, /renderContactPanel/, 'the trigger must render the panel');
+    // The SDK is only worth fetching once the customer asks.
+    assert.match(build, /await import\('\/js\/contact-vendor\.js'\)/,
+      'the contact module must be imported on demand');
+  });

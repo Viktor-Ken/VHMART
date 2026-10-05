@@ -71,3 +71,12 @@ button, .button { border: 0; border-radius: 6px; cursor: pointer; display: inlin
 .password-toggle svg { display: block; }
 [data-theme="dark"] .password-toggle:hover { color: var(--green); background: #1b2724; }
 @media (prefers-reduced-motion: no-preference) { .password-toggle svg { transition: transform .15s ease; } .password-toggle:hover svg { transform: scale(1.08); } }
+/* Contact vendor panel. The channel list is a radio group so a customer picks one
+   method, and the terms checkbox is a separate gate: neither alone is enough to
+   continue. */
+.contact-panel__channels { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; margin: 12px 0; }
+.contact-panel__channel { display: flex; gap: 10px; align-items: flex-start; padding: 6px 0; cursor: pointer; word-break: break-word; }
+.contact-panel__channel input { width: auto; margin-top: 3px; flex: none; }
+.contact-panel__terms { display: flex; gap: 10px; align-items: flex-start; font-weight: 700; margin: 12px 0 4px; }
+.contact-panel__terms input { width: auto; margin-top: 3px; flex: none; }
+.contact-panel button[disabled] { opacity: .55; cursor: not-allowed; }
