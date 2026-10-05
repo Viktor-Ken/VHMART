@@ -1,4 +1,27 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Space+Grotesk:wght@500;700&display=swap');
+/* Self-hosted variable fonts, latin subset only (58 KB total).
+
+This used to be an @import of the Google Fonts stylesheet from the first line of
+this file. An @import is discovered only after this stylesheet has loaded, so the
+browser made two chained round trips - to us, then to fonts.googleapis.com -
+before it could resolve a single glyph. That, with the hero images queuing behind
+it, held first contentful paint at 2.4s. DM Sans and Space Grotesk are both
+licensed under the SIL Open Font License, which permits redistribution. */
+@font-face {
+  font-family: 'DM Sans';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('/fonts/DMSans-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+2000-206F, U+2122, U+2191, U+2193, U+2212, U+2215;
+}
+@font-face {
+  font-family: 'Space Grotesk';
+  font-style: normal;
+  font-weight: 500 700;
+  font-display: swap;
+  src: url('/fonts/SpaceGrotesk-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+2000-206F, U+2122, U+2191, U+2193, U+2212, U+2215;
+}
 :root { --ink: #182426; --muted: #607174; --paper: #f6f8f4; --line: #dce5df; --green: #176b55; --coral: #e76f51; --yellow: #f5c451; }
 :root[data-theme="dark"] { --ink: #e8f0ee; --muted: #a7b7b2; --paper: #101614; --line: #24312d; --green: #3fbf98; --coral: #f08a68; --yellow: #f5c451; }
 * { box-sizing: border-box; } body { margin: 0; color: var(--ink); background: var(--paper); font-family: 'DM Sans', sans-serif; } a { color: inherit; } button, input, select, textarea { font: inherit; }

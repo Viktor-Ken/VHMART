@@ -11,7 +11,7 @@ const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
 const SITE_ORIGIN = 'https://vhmart.online';
 const SITE_NAME = 'VisuaHealth Market';
-const DEFAULT_IMAGE = `${SITE_ORIGIN}/Visuamall/general/home-removebg-preview.png`;
+const DEFAULT_IMAGE = `${SITE_ORIGIN}/Visuamall/general/home-removebg-preview.webp`;
 
 // route is the clean URL the live site serves (static hosts resolve a clean URL
 // to the matching .html file). canonical
@@ -21,7 +21,7 @@ const PAGES = {
     route: '/',
     title: `${SITE_NAME} | Health, Medical Wear & Wellness Products`,
     description: 'Shop scrubs, masks, wellness and fitness products from independent VHMART vendors. Browse by category, view product details and send an enquiry directly to the vendor.',
-    image: `${SITE_ORIGIN}/Visuamall/general/home-removebg-preview.png`,
+    image: `${SITE_ORIGIN}/Visuamall/general/home-removebg-preview.webp`,
     jsonLd: {
       '@context': 'https://schema.org',
       '@type': 'WebSite',
@@ -165,7 +165,7 @@ function organisationJsonLd() {
     '@type': 'Organization',
     name: SITE_NAME,
     url: `${SITE_ORIGIN}/`,
-    logo: `${SITE_ORIGIN}/Visuamall/general/home-removebg-preview.png`
+    logo: `${SITE_ORIGIN}/Visuamall/general/home-removebg-preview.webp`
   };
 }
 
@@ -183,6 +183,12 @@ function buildBlock(config) {
   if (config.description) lines.push(`<meta name="description" content="${escapeHtml(config.description)}">`);
   lines.push(`<link rel="canonical" href="${escapeHtml(url)}">`);
   lines.push(`<meta name="robots" content="${config.noindex ? 'noindex,nofollow' : 'index,follow,max-image-preview:large'}">`);
+
+  // The stylesheet references these, but the browser only discovers that after
+  // css/main.css has arrived, so without a preload they start late and first
+  // contentful paint waits on them. Preloading says "fetch now, in parallel".
+  lines.push('<link rel="preload" href="/fonts/DMSans-latin.woff2" as="font" type="font/woff2" crossorigin>');
+  lines.push('<link rel="preload" href="/fonts/SpaceGrotesk-latin.woff2" as="font" type="font/woff2" crossorigin>');
 
   lines.push(`<meta property="og:type" content="website">`);
   lines.push(`<meta property="og:site_name" content="${escapeHtml(SITE_NAME)}">`);

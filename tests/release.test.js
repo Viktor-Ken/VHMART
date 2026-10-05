@@ -5,6 +5,10 @@ import path from 'node:path';
 
 const root = process.cwd();
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
+  const existsSync = (file) => fs.existsSync(path.join(root, String(file).replace(/^\//, '')));
+  // CSS comments are stripped before asserting on directives, so prose explaining a
+  // past decision cannot be mistaken for the thing it describes.
+  const cssDirectives = (file) => read(file).replace(/\/\*[\s\S]*?\*\//g, '');
 const count = (haystack, needle) => haystack.split(needle).length - 1;
 const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -1005,4 +1009,76 @@ const privateDirs = ['admin', 'vendor', 'account', 'js'];
     // Reply details the vendor needs to answer.
     assert.match(inbox, /customerEmail/, 'the vendor must see how to reply by email');
     assert.match(inbox, /productName|productId/, 'the vendor must see which product was asked about');
+  });
+
+test('nothing above the fold blocks the first paint', () => {
+    const css = cssDirectives('css/main.css');
+
+    // A CSS @import of a third-party stylesheet is discovered only after this
+    // file has loaded, so the browser made two chained round trips before it could
+    // resolve a glyph. That held first contentful paint at 2.4s. The fonts are
+    // served from this origin now.
+    assert.doesNotMatch(css, /@import/,
+      'a CSS @import chains a second round trip; keep stylesheets self-contained');
+    assert.doesNotMatch(css, /fonts\.googleapis/,
+      'the font stylesheet must not be fetched from a third-party origin');
+
+    // The files must actually exist and be real woff2, or the site silently falls
+    // back to system fonts.
+    for (const face of ['/fonts/DMSans-latin.woff2', '/fonts/SpaceGrotesk-latin.woff2']) {
+      assert.ok(existsSync(face), `${face} must exist`);
+      const magic = fs.readFileSync(path.join(root, face.slice(1))).subarray(0, 4).toString('ascii');
+      assert.equal(magic, 'wOF2', `${face} must be a valid woff2 file`);
+    }
+    assert.match(css, /font-display:\s*swap/,
+      'font-display swap keeps text visible while the font loads');
+
+    // A preload only helps if the page declares it, so at least one shipped page
+    // and the generated product pages must both carry it.
+    assert.match(read('index.html'), /rel="preload"[^>]*DMSans-latin\.woff2/,
+      'hand-written pages must preload the fonts they use');
+    const build = read('scripts/build-seo.js');
+    assert.match(build, /rel="preload"[^>]*DMSans-latin\.woff2/,
+      'generated product pages must preload the fonts too');
+
+    // The fonts must reach the published site.
+    assert.ok(existsSync('public/fonts/DMSans-latin.woff2'),
+      'the fonts must be staged into the publish output');
+
+    // An image referenced by a stylesheet is only discovered after the CSS
+    // arrives, so the hero is preloaded explicitly.
+    assert.match(build, /rel="preload"[^>]*hero\.jpeg/,
+      'the hero background must be preloaded so it does not queue behind the CSS');
+  });
+
+  test('the heaviest images are converted and not shipped oversized', () => {
+    // These two were 622 KB of the ~1.3 MB a homepage visit originally pulled,
+    // for a logo rendered at roughly 100px and a photograph stored as a PNG.
+    const converted = [
+      { file: 'Visuamall/logo.webp', was: 'Visuamall/logo.jpeg' },
+      { file: 'Visuamall/general/home-removebg-preview.webp', was: 'Visuamall/general/home-removebg-preview.png' }
+    ];
+
+    for (const { file, was } of converted) {
+assert.ok(existsSync(file), `${file} must exist`);
+      assert.ok(!existsSync(was), `${was} must be removed, not left behind`);
+      const size = fs.statSync(path.join(root, file)).size;
+      assert.ok(size < 60 * 1024, `${file} is ${Math.round(size / 1024)} KB, expected under 60 KB`);
+    }
+
+    // No page may still point at a file that was replaced.
+    const pages = fs.readdirSync(root).filter((f) => f.endsWith('.html'));
+    for (const page of pages) {
+      const text = fs.readFileSync(path.join(root, page), 'utf8');
+      assert.doesNotMatch(text, /logo\.jpeg|home-removebg-preview\.png/,
+        `${page} still references a replaced image`);
+    }
+
+    // The optimiser itself must not become a dependency: the build has to keep
+    // working with nothing installed.
+    const pkg = JSON.parse(read('package.json'));
+    const all = { ...pkg.dependencies, ...pkg.devDependencies };
+    assert.ok(!all.sharp, 'sharp is a one-off tool and must never be a dependency');
+    assert.ok(!existsSync('optimize-images.mjs'),
+      'the one-off optimiser must not be left in the repository');
   });
