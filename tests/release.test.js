@@ -1172,3 +1172,31 @@ assert.ok(existsSync(file), `${file} must exist`);
     assert.match(products, /9 \* 1024 \* 1024/,
       'an oversized source file must be rejected outright');
   });
+
+  test('a stale image reference is repaired automatically, not just reported', () => {
+    const verify = read('scripts/repoint-images.mjs');
+
+    // Deriving the replacement from the filesystem, not from `git status`. Once a
+    // rename is committed, git stops reporting the old path as deleted, so a
+    // reference left behind is invisible to a git-based check - which is exactly
+    // how a .png reference survived a pass that renamed the file to .webp.
+    assert.match(verify, /\['webp', 'avif'\]/,
+      'the repair must consider the compressed replacements');
+    assert.match(verify, /no replacement found/,
+      'an unresolvable reference must say so rather than failing silently');
+    assert.match(verify, /FIXED/,
+      'the repair must be reported');
+    assert.doesNotMatch(verify, /git status --porcelain/,
+      'the repair must not depend on git state');
+
+    // Both budgets live in one place and agree with each other.
+    const check = read('scripts/check-images.mjs');
+    const optimise = read('scripts/optimize-images.mjs');
+    const budgetInCheck = /const BUDGET_BYTES = (\d+) \* 1024;/.exec(check);
+    const budgetInOptimise = /const BUDGET_BYTES = (\d+) \* 1024;/.exec(optimise);
+    assert.ok(budgetInCheck && budgetInOptimise, 'both scripts must define the budget');
+    assert.equal(
+      budgetInCheck[1], budgetInOptimise[1],
+      'the optimiser and the check must use the same budget, or the check fails files it just wrote'
+    );
+  });

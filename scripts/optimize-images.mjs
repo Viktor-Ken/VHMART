@@ -35,7 +35,11 @@ const MAX_EDGE = 1200;
 const QUALITY = 80;
 
 // Above this, an image is worth rewriting. Kept in step with check-images.mjs.
-const BUDGET_BYTES = 120 * 1024;
+// Set at 90 KB rather than the 120 KB the first pass used: that left 59 files
+// sitting just under the line as PNG, which is under half the size WebP would
+// give for the same image. A budget that only catches the worst offenders is not
+// much of a budget.
+const BUDGET_BYTES = 90 * 1024;
 
 const RASTER = new Set(['.png', '.jpg', '.jpeg', '.bmp', '.gif']);
 

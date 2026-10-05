@@ -8,8 +8,10 @@
 // committed, because the next build stops.
 //
 // The budget is a byte limit, deliberately: reading dimensions needs a decoder and
-// would mean a dependency. 120 KB is comfortably under what any of these images
-// need at the sizes they render.
+// would mean a dependency. 90 KB is comfortably under what any of these images
+// need at the sizes they render, and it is tight enough to catch a PNG that
+// should have been WebP - the first pass used 120 KB and left 59 files just under
+// the line.
 //
 // Run: node scripts/check-images.mjs
 
@@ -19,7 +21,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const IMAGE_DIR = path.join(root, 'Visuamall');
-const BUDGET_BYTES = 120 * 1024;
+const BUDGET_BYTES = 90 * 1024;
 
 const offenders = [];
 let total = 0;

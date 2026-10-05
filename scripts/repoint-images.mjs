@@ -6,7 +6,7 @@
 // names the old paths on purpose to assert they are gone.
 //
 // Run: node scripts/repoint-images.mjs
-import { readdir, readFile, stat } from 'node:fs/promises';
+import { readdir, readFile, writeFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -35,11 +35,30 @@ for (const file of texts) {
   for (const match of text.matchAll(PATTERN)) {
     const rel = match[1];
     if (!(await exists(path.join(root, rel)))) {
-      console.log(`  MISSING  ${path.relative(root, file)}  ->  ${rel}`);
-      dangling += 1;
+      // A renamed asset keeps its stem, so point at the replacement rather than
+      // only reporting it. Deriving this from the filesystem rather than from
+      // `git status` matters: once a rename has been committed, git no longer
+      // reports the old path as deleted and the reference is missed entirely.
+      const dir = rel.slice(0, rel.lastIndexOf('/'));
+      const stem = rel.slice(dir.length + 1).replace(/\.(png|jpe?g|bmp|gif)$/i, '');
+      let fixed = false;
+      for (const candidate of ['webp', 'avif']) {
+        const replacement = `${dir}/${stem}.${candidate}`;
+        if (await exists(path.join(root, replacement))) {
+          await writeFile(file, text.split(rel).join(replacement), 'utf8');
+          console.log(`  FIXED    ${path.relative(root, file)}  ${rel} -> ${replacement}`);
+          dangling += 1;
+          fixed = true;
+          break;
+        }
+      }
+      if (!fixed) {
+        console.log(`  MISSING  ${path.relative(root, file)}  ->  ${rel}  (no replacement found)`);
+        dangling += 1;
+      }
     }
   }
 }
 
-console.log(dangling ? `\n${dangling} dangling reference(s)` : '  every image reference resolves');
+console.log(dangling ? `\n${dangling} dangling reference(s) found` : '  every image reference resolves');
 process.exitCode = dangling ? 1 : 0;
