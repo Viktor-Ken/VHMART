@@ -335,8 +335,8 @@ test('admin access is honoured by the database rules, not only the UI', () => {
 
 test('the analytics page is linked from the admin navigation', () => {
   const dashboard = read('admin/dashboard.html');
-  assert.match(dashboard, /href="analytics\.html"/, 'analytics must be reachable from the admin nav');
-  assert.match(dashboard, /href="accounts\.html"/, 'accounts must be reachable from the admin nav');
+  assert.match(dashboard, /href="analytics\"/, 'analytics must be reachable from the admin nav');
+  assert.match(dashboard, /href="accounts\"/, 'accounts must be reachable from the admin nav');
   const analytics = read('admin/analytics.html');
   assert.match(analytics, /recentTraffic/, 'the page must load traffic data');
   assert.match(analytics, /analytics\/page_views/, 'and the page-view events');
@@ -963,13 +963,17 @@ const privateDirs = ['admin', 'vendor', 'account', 'js'];
 
 // The generated product page routes to the vendor profile with plain anchors, so
     // it works without JavaScript and no longer pulls in the Firebase SDK.
+    // Pages serves the extensionless form directly and 308s /foo.html, so the
+    // template and the test both expect no extension.
     const build = read('scripts/build-seo.js');
-    assert.match(build, /vendor-profile\.html\?id=/,
+    assert.match(build, /vendor-profile\?id=/,
       'a product page must offer a link to the vendor profile');
-    assert.match(build, /enquiry\.html\?vendor=/,
+    assert.match(build, /enquiry\?vendor=/,
       'a product page must offer a way to send an enquiry about it');
     assert.doesNotMatch(build, /data-contact-vendor/,
       'the contact panel belongs on the vendor profile, not the product page');
+    assert.doesNotMatch(build, /vendor-profile\.html/,
+      'internal links must not carry an extension that Pages redirects');
   });
 
   test('an enquiry reaches the vendor without needing a mail server', () => {
@@ -1265,7 +1269,7 @@ assert.match(enquiry, /String\(value\.value\)\.trim\(\)\.slice\(0, 120\)/,
     // require customerUid to be the signed-in user. Send them to sign in.
     assert.match(enquiry, /auth\.currentUser/,
       'the enquiry form must handle a signed-out visitor');
-    assert.match(enquiry, /login\.html\?next=/,
+assert.match(enquiry, /login\?next=/,
       'a signed-out visitor must be sent to sign in and returned');
 
     const rules = JSON.parse(read('firebase/database.rules.json')).rules;
@@ -1372,4 +1376,41 @@ assert.ok(validate, 'the enquiry wildcard must carry a .validate rule');
     const userChild = Object.entries(rules.users).find(([k]) => k.startsWith('$'));
     assert.match(userChild[1]['.validate'], /hasChildren\(\['name', 'email', 'role', 'active'\]\)/,
       'the user validation is a minimum, so termsAcceptedAt is permitted');
+  });
+
+  test('no internal link carries an extension that Pages redirects', () => {
+    // Pages answers /marketplace.html with a 308 to /marketplace, so every link
+    // written with an extension costs an extra round trip before the page starts
+    // loading. scripts/clean-links.mjs rewrote them; this stops them coming back.
+    const files = [];
+    const collect = (dir) => {
+      for (const entry of fs.readdirSync(path.join(root, dir), { withFileTypes: true })) {
+        if (['node_modules', '.git', 'public', 'fonts', 'tests'].includes(entry.name)) continue;
+        const rel = `${dir}/${entry.name}`;
+        if (entry.isDirectory()) collect(rel);
+        else if (/\.(html|css|js|mjs)$/i.test(entry.name)) files.push(rel);
+      }
+    };
+    collect('.');
+
+    const inMarkup = /(?:href|src)="(?!https?:|\/\/|#)([^"]*?)\.html/g;
+    const inScript = /\.href\s*=\s*[`'"](?!https?:|\/\/|#)([^`'"?#]*?)\.html/g;
+    const offenders = [];
+
+    for (const file of files) {
+      const text = fs.readFileSync(path.join(root, file), 'utf8');
+      for (const match of text.matchAll(inMarkup)) offenders.push(`${file}: ${match[1]}.html`);
+      for (const match of text.matchAll(inScript)) offenders.push(`${file}: ${match[1]}.html`);
+    }
+    assert.deepEqual(offenders, [], `links that Pages will redirect:\n${offenders.slice(0, 20).join('\n')}`);
+
+    // A query string must survive the rewrite, since the category filter depends
+    // on it. Assert the form is present rather than absent.
+    assert.match(read('index.html'), /marketplace\?category=/,
+      'category links must keep their query string');
+
+    // The rewriter itself must be safe to run repeatedly.
+    const clean = read('scripts/clean-links.mjs');
+    assert.match(clean, /function stripExtension/, 'the strip helper must exist');
+    assert.match(clean, /=== 'index'/, 'index.html must become the site root');
   });

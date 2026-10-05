@@ -237,8 +237,8 @@ ${imageUrl ? `  <img src="/${escapeXml(imageUrl)}" alt="${escapeXml(title)}" wid
     <p class="product-price">${price ? escapeXml(`₦${price}`) : 'Contact vendor for price'}</p>
     <p>${escapeXml(product.description || 'Ask the vendor for more information about this product.')}</p>
     <p><small>${escapeXml([categoryId, product.availability, vendorLine].filter(Boolean).join(' | '))}</small></p>
-    ${product.vendorId ? `<p><a class="button button--primary" href="/vendor-profile.html?id=${encodeURIComponent(product.vendorId)}">View vendor</a></p>
-    <p><a href="/enquiry.html?vendor=${encodeURIComponent(product.vendorId)}&amp;product=${encodeURIComponent(product.id)}">Send an enquiry about this product</a></p>` : `<p><a href="/contact">Ask about this product</a></p>`}
+    ${product.vendorId ? `<p><a class="button button--primary" href="/vendor-profile?id=${encodeURIComponent(product.vendorId)}">View vendor</a></p>
+    <p><a href="/enquiry?vendor=${encodeURIComponent(product.vendorId)}&amp;product=${encodeURIComponent(product.id)}">Send an enquiry about this product</a></p>` : `<p><a href="/contact">Ask about this product</a></p>`}
   </div>
 </article>
 </main>
@@ -251,7 +251,7 @@ ${imageUrl ? `  <img src="/${escapeXml(imageUrl)}" alt="${escapeXml(title)}" wid
 // where they can read the rest of the listing and choose between sending an
 // enquiry or contacting the vendor directly. Both links are plain anchors, so
 // they work with JavaScript disabled and need no module import.
-${product.vendorId ? `<p><a class="button button--primary" href="/vendor-profile.html?id=${encodeURIComponent(product.vendorId)}">View vendor</a></p>` : ''}
+${product.vendorId ? `<p><a class="button button--primary" href="/vendor-profile?id=${encodeURIComponent(product.vendorId)}">View vendor</a></p>` : ''}
 </script>
 </body>
 </html>

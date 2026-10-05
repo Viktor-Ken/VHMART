@@ -127,7 +127,7 @@ async function render(id) {
   actions.append(contactButton);
 
   const enquireLink = el('a', 'button button--quiet', 'Send an enquiry');
-  enquireLink.href = `/enquiry.html?vendor=${encodeURIComponent(id)}`;
+  enquireLink.href = `/enquiry?vendor=${encodeURIComponent(id)}`;
   actions.append(enquireLink);
 
   header.append(actions);

@@ -84,7 +84,7 @@ export function renderContactPanel(mount, context) {
     // An enquiry must be attributable, and the rules require customerUid, so an
     // anonymous visitor is sent to sign in before anything is recorded.
     if (!auth.currentUser) {
-      location.href = `/login.html?next=${encodeURIComponent(location.pathname + location.search)}`;
+      location.href = `/login?next=${encodeURIComponent(location.pathname + location.search)}`;
       return;
     }
 

@@ -23,7 +23,7 @@
 <!-- seo:end -->
 </head>
 <body><main class="page">
-<nav class="nav"><a class="brand" href="index.html">VHMART</a><a href="marketplace.html">Marketplace</a><button id="logout" type="button">Sign out</button></nav>
+<nav class="nav"><a class="brand" href="">VHMART</a><a href="marketplace">Marketplace</a><button id="logout" type="button">Sign out</button></nav>
 <h1>My account</h1>
 <section class="form-panel" id="details"><p class="empty">Loading your account...</p></section>
 <section class="form-panel">
@@ -43,7 +43,7 @@ const details = document.querySelector('#details');
 const deleteMessage = document.querySelector('#deleteMessage');
 
 requireUser(async (user, profile) => {
-  if (profile.deletedAt || profile.active === false) { location.href = 'account-deleted.html'; return; }
+  if (profile.deletedAt || profile.active === false) { location.href = 'account-deleted'; return; }
   details.replaceChildren();
   const heading = document.createElement('h2');
   heading.textContent = profile.name || profile.email || 'Your account';
@@ -94,7 +94,7 @@ const updates = [];
         // be reported as a failed deletion.
         console.warn('Self-delete audit entry not written:', auditError && auditError.message);
       }
-      location.href = 'account-deleted.html';
+      location.href = 'account-deleted';
     } catch (error) {
       console.error(error);
       deleteMessage.textContent = 'We could not delete your account. Please try again.';

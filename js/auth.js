@@ -116,7 +116,7 @@ export function requireAdmin(onReady, loginPath = '../login.html') {
             console.warn('Could not verify admin access:', error && error.message);
         }
         if (!allowed) {
-            location.href = '../index.html';
+            location.href = '';
             return;
         }
         onReady(user, profile);
@@ -125,7 +125,7 @@ export function requireAdmin(onReady, loginPath = '../login.html') {
 
 export function logout(button) {
     button?.addEventListener('click', () => signOut(auth).then(() => {
-        location.href = '../index.html';
+        location.href = '';
     }));
 }
 

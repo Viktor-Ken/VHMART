@@ -22,7 +22,7 @@
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"VisuaHealth Market","url":"https://vhmart.online/","logo":"https://vhmart.online/Visuamall/general/home-removebg-preview.webp"}</script>
 <!-- seo:end -->
 </head>
-<body><main class="page"><nav class="nav"><a class="brand" href="dashboard.html">VHMART</a><a href="add-product.html" class="button button--primary">Add product</a><a href="enquiries.html">Enquiries</a><button id="logout" type="button">Sign out</button></nav>
+<body><main class="page"><nav class="nav"><a class="brand" href="dashboard">VHMART</a><a href="add-product" class="button button--primary">Add product</a><a href="enquiries">Enquiries</a><button id="logout" type="button">Sign out</button></nav>
 <h1>My products</h1><div id="products" class="product-grid"><p class="empty">Loading products...</p></div>
 </main>
 <script type="module">
@@ -32,9 +32,9 @@ logout(document.querySelector('#logout'));
 const root = document.querySelector('#products');
 function showMessage(text, className = 'empty') { root.replaceChildren(); const el = document.createElement('p'); el.className = className; el.textContent = text; root.append(el); }
 requireUser(async (user, profile) => {
-  if (profile.role !== 'vendor') { location.href = '../index.html'; return; }
-    if (profile.deletedAt) { location.href = 'deleted.html'; return; }
-    if (profile.status !== 'ACTIVE') { location.href = 'pending.html'; return; }
+  if (profile.role !== 'vendor') { location.href = ''; return; }
+    if (profile.deletedAt) { location.href = 'deleted'; return; }
+    if (profile.status !== 'ACTIVE') { location.href = 'pending'; return; }
   try {
     const products = await ownedProducts(user.uid);
     root.replaceChildren();
@@ -49,7 +49,7 @@ requireUser(async (user, profile) => {
       const status = document.createElement('p'); status.textContent = `Status: ${product.status === 'PUBLISHED' ? 'LIVE' : (product.status || 'UNKNOWN')}`;
       const category = document.createElement('p'); category.textContent = `Category: ${(product.categoryId || 'general').replaceAll('-', ' ')}`;
       const actions = document.createElement('div'); actions.className = 'button-row';
-      const edit = document.createElement('a'); edit.className = 'button button--quiet'; edit.href = `edit-product.html?id=${encodeURIComponent(product.id)}`; edit.textContent = 'Edit product';
+      const edit = document.createElement('a'); edit.className = 'button button--quiet'; edit.href = `edit-product?id=${encodeURIComponent(product.id)}`; edit.textContent = 'Edit product';
       const del = document.createElement('button'); del.type = 'button'; del.className = 'button button--danger'; del.textContent = 'Delete';
       del.addEventListener('click', async () => {
         if (!confirm(`Delete "${product.name || 'this product'}"? This cannot be undone.`)) return;

@@ -22,7 +22,7 @@
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"VisuaHealth Market","url":"https://vhmart.online/","logo":"https://vhmart.online/Visuamall/general/home-removebg-preview.webp"}</script>
 <!-- seo:end -->
 </head>
-<body><main class="page"><nav class="nav"><a class="brand" href="dashboard.html">VHMART</a><a href="products.html">Products</a><a href="profile.html">Profile</a><button id="logout" type="button">Sign out</button></nav>
+<body><main class="page"><nav class="nav"><a class="brand" href="dashboard">VHMART</a><a href="products">Products</a><a href="profile">Profile</a><button id="logout" type="button">Sign out</button></nav>
 <h1>Enquiries</h1><div id="list"><p class="empty">Loading enquiries...</p></div>
 </main>
 <script type="module">
@@ -33,9 +33,9 @@ logout(document.querySelector('#logout'));
 const root = document.querySelector('#list');
 function showMessage(text, className = 'empty') { root.replaceChildren(); const el = document.createElement('p'); el.className = className; el.textContent = text; root.append(el); }
 requireUser(async (user, profile) => {
-  if (profile.role !== 'vendor') { location.href = '../index.html'; return; }
-    if (profile.deletedAt) { location.href = 'deleted.html'; return; }
-    if (profile.status !== 'ACTIVE') { location.href = 'pending.html'; return; }
+  if (profile.role !== 'vendor') { location.href = ''; return; }
+    if (profile.deletedAt) { location.href = 'deleted'; return; }
+    if (profile.status !== 'ACTIVE') { location.href = 'pending'; return; }
   try {
     let snapshot = await get(ref(database, `vendor_enquiries/${user.uid}`));
     if (!snapshot.exists()) {

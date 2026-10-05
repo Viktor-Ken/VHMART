@@ -8,7 +8,7 @@
 </head>
 <body>
   <main class="page">
-    <a href="../index.html">Back to VHMART</a>
+    <a href="">Back to VHMART</a>
     <section class="form-panel">
       <h1>Admin Login</h1>
       <p>Sign in with the dedicated VHMART administrator account.</p>
@@ -57,7 +57,7 @@
           message.textContent = 'Signed in, but this account has no administrator grant.';
           return;
         }
-        location.href = 'dashboard.html';
+        location.href = 'dashboard';
       } catch (error) {
         console.error(error);
         message.textContent = 'Admin sign-in failed. Check the password.';

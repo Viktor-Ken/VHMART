@@ -23,16 +23,16 @@
 <!-- seo:end -->
 </head>
 <body><main class="page">
-<nav class="nav"><a class="brand" href="index.html">VHMART</a><button id="logout" type="button">Sign out</button></nav>
+<nav class="nav"><a class="brand" href="">VHMART</a><button id="logout" type="button">Sign out</button></nav>
 <section class="form-panel">
   <h1>Your account is closed</h1>
   <p>Your VHMART account has been deleted, so your profile, listings and saved products no longer show on the site.</p>
   <p>We keep the record of the account for legal and record-keeping reasons. If you want it back, contact VHMART support and an admin can restore it.</p>
-  <p><a href="index.html">Back to VHMART</a></p>
+  <p><a href="">Back to VHMART</a></p>
 </section>
 </main>
 <script type="module">
 import { auth } from './js/firebase.js';
 import { signOut } from 'https://www.gstatic.com/firebasejs/12.10.0/firebase-auth.js';
-document.querySelector('#logout')?.addEventListener('click', () => signOut(auth).then(() => { location.href = 'index.html'; }));
+document.querySelector('#logout')?.addEventListener('click', () => signOut(auth).then(() => { location.href = ''; }));
 </script><script src="js/brand-avatar.js"></script><script src="js/theme.js"></script></body></html>

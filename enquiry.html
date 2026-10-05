@@ -108,7 +108,7 @@ async function showVendor(id) {
     if (vendor && vendor.status === 'ACTIVE') {
       document.querySelector('#intro').textContent =
         `Tell ${vendor.businessName || 'this vendor'} what you need and how to reach you.`;
-      document.querySelector('#back').href = `/vendor-profile.html?id=${encodeURIComponent(id)}`;
+      document.querySelector('#back').href = `/vendor-profile?id=${encodeURIComponent(id)}`;
     }
   } catch (error) {
     console.error(error);
@@ -123,7 +123,7 @@ form.addEventListener('submit', async (event) => {
     // The rules require customerUid to match the signed-in user, so an anonymous
     // enquiry cannot be stored at all. Send them to sign in rather than failing
     // with a permission error.
-    location.href = `/login.html?next=${encodeURIComponent(location.pathname + location.search)}`;
+    location.href = `/login?next=${encodeURIComponent(location.pathname + location.search)}`;
     return;
   }
 

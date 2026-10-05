@@ -23,7 +23,7 @@
 <!-- seo:end -->
 </head>
 <body><main class="page">
-<nav class="nav"><a class="brand" href="../index.html">VHMART</a><button id="logout" type="button">Sign out</button></nav>
+<nav class="nav"><a class="brand" href="">VHMART</a><button id="logout" type="button">Sign out</button></nav>
 <section class="form-panel" id="statusPanel"><h1>Vendor application</h1><p class="empty">Loading your application status...</p></section>
 </main>
 <script type="module">
@@ -42,9 +42,9 @@ function render(title, body, tone) {
 }
 
 requireUser(async (user, profile) => {
-  if (profile.role !== 'vendor') { location.href = '../index.html'; return; }
-  if (profile.deletedAt) { location.href = 'deleted.html'; return; }
-  if (profile.status === 'ACTIVE') { location.href = 'dashboard.html'; return; }
+  if (profile.role !== 'vendor') { location.href = ''; return; }
+  if (profile.deletedAt) { location.href = 'deleted'; return; }
+  if (profile.status === 'ACTIVE') { location.href = 'dashboard'; return; }
   if (profile.status === 'PENDING') {
     render('Application received', 'Your vendor application is with a VHMART admin for review. Every new vendor is approved before the storefront and dashboard open up. This usually takes a day.', '#176b55');
   } else if (profile.status === 'DECLINED') {
@@ -55,7 +55,7 @@ requireUser(async (user, profile) => {
   }
   const back = document.createElement('p');
   const link = document.createElement('a');
-  link.href = '../index.html';
+  link.href = '';
   link.textContent = 'Back to VHMART';
   back.append(link);
   panel.append(back);
