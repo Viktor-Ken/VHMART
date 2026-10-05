@@ -48,8 +48,8 @@ Rejuvenates
 Enhancing Alertness and readiness 
 Eases fatigue</p>
     <p><small>wellness | AVAILABLE | Sold by an independent VHMART vendor. Message the vendor directly to ask about this product.</small></p>
-    <p><button type="button" class="button button--primary" data-contact-vendor>Contact vendor</button></p>
-    <div data-contact-mount></div>
+    <p><a class="button button--primary" href="/vendor-profile.html?id=JkuR6Jebxlf8l1scobHBnghh5192">View vendor</a></p>
+    <p><a href="/enquiry.html?vendor=JkuR6Jebxlf8l1scobHBnghh5192&amp;product=-P1DC2gvz_kc5qUwyCce">Send an enquiry about this product</a></p>
   </div>
 </article>
 </main>
@@ -58,36 +58,11 @@ Eases fatigue</p>
 <script src="/js/theme.js"></script>
 <script src="/js/track.js"></script>
 <script type="module">
-// The page itself is static so a crawler can read it without running JavaScript.
-// Contacting the vendor needs the vendor's live contact details, so that part is
-// added here. The module pulls in the Firebase SDK, so it is only imported when
-// the customer actually asks to contact the vendor.
-
-const trigger = document.querySelector('[data-contact-vendor]');
-const mount = document.querySelector('[data-contact-mount]');
-if (trigger && mount) {
-  trigger.addEventListener('click', async () => {
-    trigger.disabled = true;
-    try {
-      const { renderContactPanel } = await import('/js/contact-vendor.js');
-      mount.replaceChildren();
-      renderContactPanel(mount, {
-        vendorId: "JkuR6Jebxlf8l1scobHBnghh5192",
-        productId: "-P1DC2gvz_kc5qUwyCce",
-        productName: "LAVISIONSHIELD TABLETS 30tablets",
-        termsUrl: '/terms-and-conditions.html'
-      });
-      trigger.remove();
-    } catch (error) {
-      console.error(error);
-      trigger.disabled = false;
-      const failed = document.createElement('p');
-      failed.className = 'error';
-      failed.textContent = 'We could not load the contact options. Please try again.';
-      mount.replaceChildren(failed);
-    }
-  });
-}
+// A customer who decides they want this product goes to the vendor's profile,
+// where they can read the rest of the listing and choose between sending an
+// enquiry or contacting the vendor directly. Both links are plain anchors, so
+// they work with JavaScript disabled and need no module import.
+<p><a class="button button--primary" href="/vendor-profile.html?id=JkuR6Jebxlf8l1scobHBnghh5192">View vendor</a></p>
 </script>
 </body>
 </html>

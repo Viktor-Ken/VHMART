@@ -237,8 +237,8 @@ ${imageUrl ? `  <img src="/${escapeXml(imageUrl)}" alt="${escapeXml(title)}" wid
     <p class="product-price">${price ? escapeXml(`₦${price}`) : 'Contact vendor for price'}</p>
     <p>${escapeXml(product.description || 'Ask the vendor for more information about this product.')}</p>
     <p><small>${escapeXml([categoryId, product.availability, vendorLine].filter(Boolean).join(' | '))}</small></p>
-    ${product.vendorId ? `<p><button type="button" class="button button--primary" data-contact-vendor>Contact vendor</button></p>
-    <div data-contact-mount></div>` : `<p><a href="/contact">Ask about this product</a></p>`}
+    ${product.vendorId ? `<p><a class="button button--primary" href="/vendor-profile.html?id=${encodeURIComponent(product.vendorId)}">View vendor</a></p>
+    <p><a href="/enquiry.html?vendor=${encodeURIComponent(product.vendorId)}&amp;product=${encodeURIComponent(product.id)}">Send an enquiry about this product</a></p>` : `<p><a href="/contact">Ask about this product</a></p>`}
   </div>
 </article>
 </main>
@@ -247,36 +247,11 @@ ${imageUrl ? `  <img src="/${escapeXml(imageUrl)}" alt="${escapeXml(title)}" wid
 <script src="/js/theme.js"></script>
 <script src="/js/track.js"></script>
 <script type="module">
-// The page itself is static so a crawler can read it without running JavaScript.
-// Contacting the vendor needs the vendor's live contact details, so that part is
-// added here. The module pulls in the Firebase SDK, so it is only imported when
-// the customer actually asks to contact the vendor.
-${product.vendorId ? `
-const trigger = document.querySelector('[data-contact-vendor]');
-const mount = document.querySelector('[data-contact-mount]');
-if (trigger && mount) {
-  trigger.addEventListener('click', async () => {
-    trigger.disabled = true;
-    try {
-      const { renderContactPanel } = await import('/js/contact-vendor.js');
-      mount.replaceChildren();
-      renderContactPanel(mount, {
-        vendorId: ${JSON.stringify(product.vendorId)},
-        productId: ${JSON.stringify(product.id)},
-        productName: ${JSON.stringify(title)},
-        termsUrl: '/terms-and-conditions.html'
-      });
-      trigger.remove();
-    } catch (error) {
-      console.error(error);
-      trigger.disabled = false;
-      const failed = document.createElement('p');
-      failed.className = 'error';
-      failed.textContent = 'We could not load the contact options. Please try again.';
-      mount.replaceChildren(failed);
-    }
-  });
-}` : ''}
+// A customer who decides they want this product goes to the vendor's profile,
+// where they can read the rest of the listing and choose between sending an
+// enquiry or contacting the vendor directly. Both links are plain anchors, so
+// they work with JavaScript disabled and need no module import.
+${product.vendorId ? `<p><a class="button button--primary" href="/vendor-profile.html?id=${encodeURIComponent(product.vendorId)}">View vendor</a></p>` : ''}
 </script>
 </body>
 </html>

@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vendor | VHMART</title>
+<link rel="canonical" href="https://vhmart.online/vendor-profile">
+<meta name="description" content="Browse a VHMART vendor's products, send an enquiry, or contact them directly.">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<link rel="preload" href="/fonts/DMSans-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/SpaceGrotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/Visuamall/logo.webp" as="image" type="image/webp">
+<link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+<header class="site-header">
+  <nav class="nav" aria-label="Main navigation">
+    <a class="brand" href="/">VHMART</a>
+    <div class="nav-links">
+      <a href="/marketplace">Marketplace</a>
+      <a href="/login">Sign in</a>
+    </div>
+  </nav>
+</header>
+<main class="page">
+  <a href="/marketplace">Back to marketplace</a>
+  <div id="vendorDetail" class="detail">
+    <p class="empty">Loading vendor...</p>
+  </div>
+</main>
+<footer class="site-footer">
+  <div>
+    <strong>VisuaHealth Market</strong>
+    <p>Discover. View. Contact.</p>
+  </div>
+</footer>
+<script type="module">
+// Public vendor profile.
+//
+// A customer who decides they want a product arrives here first, and chooses
+// between two clearly different actions:
+//
+//   Send an enquiry  - write a message and leave a way to be reached. The
+//                      vendor answers on their own dashboard.
+//   Contact vendor   - pick one of the channels the vendor published. The
+//                      terms must be accepted before anything opens.
+//
+// The contact panel is imported on demand so a visitor who only wants to read
+// the listing never downloads the module that opens a channel.
+
+import { database } from '/js/firebase.js';
+import { get, ref, query, orderByChild, equalTo } from 'https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js';
+
+const root = document.querySelector('#vendorDetail');
+const vendorId = new URLSearchParams(location.search).get('id');
+
+// A vendorId comes straight off the query string and is used as a database path,
+// so it is validated before it is used for anything.
+const SAFE_ID = /^[A-Za-z0-9_-]{1,128}$/;
+
+function el(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text != null) node.textContent = text;
+  return node;
+}
+
+if (!vendorId || !SAFE_ID.test(vendorId)) {
+  root.replaceChildren(el('p', 'empty', 'This vendor link is not valid.'));
+} else {
+  await render(vendorId);
+}
+
+async function render(id) {
+  let vendor = null;
+  try {
+    const snapshot = await get(ref(database, `vendors/${id}`));
+    vendor = snapshot.val();
+  } catch (error) {
+    console.error(error);
+  }
+
+  // The rules already refuse a read for anything that is not ACTIVE, so reaching
+  // here without a vendor means it was suspended, declined or never existed.
+  if (!vendor || vendor.status !== 'ACTIVE') {
+    root.replaceChildren(el('p', 'empty', 'This vendor is not currently available.'));
+    return;
+  }
+
+  document.title = `${vendor.businessName || 'Vendor'} | VHMART`;
+
+  const header = el('article', 'form-panel');
+  const heading = el('h1', null, vendor.businessName || 'VHMART vendor');
+  header.append(heading);
+  if (vendor.categoryId) {
+    header.append(el('p', null, `Category: ${vendor.categoryId.replaceAll('-', ' ')}`));
+  }
+  if (vendor.description) {
+    header.append(el('p', null, vendor.description));
+  }
+
+  const actions = el('div', 'button-row');
+
+  const contactButton = el('button', 'button button--primary', 'Contact vendor');
+  contactButton.type = 'button';
+  contactButton.addEventListener('click', async () => {
+    contactButton.disabled = true;
+    try {
+      const { renderContactPanel } = await import('/js/contact-vendor.js');
+      const mount = el('div', 'contact-panel');
+      header.append(mount);
+      renderContactPanel(mount, {
+        vendorId: id,
+        productId: '',
+        productName: vendor.businessName || 'your products',
+        vendorName: vendor.businessName,
+        termsUrl: '/terms-and-conditions.html'
+      });
+      contactButton.remove();
+      mount.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } catch (error) {
+      console.error(error);
+      contactButton.disabled = false;
+      header.append(el('p', 'error', 'We could not load the contact options. Please try again.'));
+    }
+  });
+  actions.append(contactButton);
+
+  const enquireLink = el('a', 'button button--quiet', 'Send an enquiry');
+  enquireLink.href = `/enquiry.html?vendor=${encodeURIComponent(id)}`;
+  actions.append(enquireLink);
+
+  header.append(actions);
+  root.replaceChildren(header);
+
+  root.append(await productSection(id));
+}
+
+// Only PUBLISHED products belonging to an active vendor are readable, so the
+// query cannot surface anything that has been suspended or deleted.
+async function productSection(vendorId) {
+  const section = el('section');
+  section.append(el('h2', null, 'Products'));
+
+  let products = [];
+  try {
+    const snapshot = await get(query(ref(database, 'products'), orderByChild('vendorId'), equalTo(vendorId)));
+    if (snapshot.exists()) {
+      products = Object.entries(snapshot.val())
+        .map(([id, product]) => ({ id, ...product }))
+        .filter((product) => product.status === 'PUBLISHED' && !product.deletedAt)
+        .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    }
+  } catch (error) {
+    console.error(error);
+  }
+
+  if (!products.length) {
+    section.append(el('p', 'empty', 'This vendor has no published products right now.'));
+    return section;
+  }
+
+  const grid = el('div', 'product-grid');
+  for (const product of products) {
+    const card = el('article', 'product-card');
+    if (product.image) {
+      const image = document.createElement('img');
+      image.src = product.image;
+      image.alt = product.name || 'Product';
+      image.width = 180;
+      image.height = 170;
+      image.loading = 'lazy';
+      image.decoding = 'async';
+      card.append(image);
+    }
+    const body = el('div', 'product-card__body');
+    body.append(el('h3', null, product.name || 'Unnamed product'));
+    if (typeof product.price === 'number' && isFinite(product.price)) {
+      body.append(el('p', 'product-price', `₦${product.price.toLocaleString('en-NG', { maximumFractionDigits: 2 })}`));
+    }
+    const link = el('a', 'button button--quiet', 'View product');
+    link.href = `/product/${encodeURIComponent(product.id)}`;
+    body.append(link);
+    card.append(body);
+    grid.append(card);
+  }
+  section.append(grid);
+  return section;
+}
+</script>
+<script src="/js/brand-avatar.js"></script>
+<script src="/js/theme.js"></script>
+<script src="/js/track.js"></script>
+</body>
+</html>

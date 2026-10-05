@@ -61,3 +61,42 @@ export async function moderate(path, id, status, actorUid) {
   const log = push(ref(database, 'audit_logs'));
   await update(log, { actor: actorUid, action: `${status}_${path}`, target: id, timestamp: serverTimestamp() });
 }
+
+// Soft delete, and reversible. A hard remove() would destroy the record an audit
+// trail and any live enquiry reference, and the public read already excludes
+// anything carrying deletedAt - so the product disappears from the marketplace
+// while the data survives.
+//
+// Mirrors how accounts.html deletes a user, so an admin sees the same shape of
+// action in both places.
+export async function softDelete(path, id, actorUid, reason = '') {
+  await update(ref(database, `${path}/${id}`), {
+    status: 'SUSPENDED',
+    deletedAt: serverTimestamp(),
+    deletedBy: actorUid,
+    deletedReason: String(reason).slice(0, 300),
+    updatedAt: serverTimestamp()
+  });
+  const log = push(ref(database, 'audit_logs'));
+  await update(log, {
+    actor: actorUid,
+    action: `delete_${path}`,
+    target: id,
+    reason: String(reason).slice(0, 300),
+    timestamp: serverTimestamp()
+  });
+}
+
+export async function restore(path, id, actorUid) {
+  // ARCHIVED rather than PUBLISHED: restoring must not silently put a product
+  // back on sale without the admin checking it. One further click publishes it.
+  await update(ref(database, `${path}/${id}`), {
+    status: 'ARCHIVED',
+    deletedAt: null,
+    deletedBy: '',
+    deletedReason: '',
+    updatedAt: serverTimestamp()
+  });
+  const log = push(ref(database, 'audit_logs'));
+  await update(log, { actor: actorUid, action: `restore_${path}`, target: id, timestamp: serverTimestamp() });
+}

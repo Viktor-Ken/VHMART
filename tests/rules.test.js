@@ -572,3 +572,80 @@ test('a contact enquiry must name a real channel and record the terms acceptance
     await assertFails(asUser('vendor2', 'dana@example.com').ref('enquiries/e1').once('value'),
       'another vendor must not read it');
   });
+
+  test('an enquiry must say how the vendor can reply', async () => {
+    await fresh();
+    await seed({ 'products/p1': { ownerUid: 'vendor1', vendorId: 'vendor1', name: 'Scrubs', categoryId: 'general', status: 'PUBLISHED' } });
+    const customer = asUser('customer1', 'casey@example.com');
+
+    const base = {
+      productId: 'p1',
+      vendorId: 'vendor1',
+      customerUid: 'customer1',
+      message: 'Are these scrubs still available in blue?',
+      status: 'NEW',
+      createdAt: 1700000000000
+    };
+
+    await assertSucceeds(
+      customer.ref('enquiries/ok').set({ ...base, replyMethod: 'whatsapp', replyValue: '08012345678' }),
+      'an enquiry with a reply method and value is the normal case'
+    );
+    await assertSucceeds(
+      customer.ref('enquiries/ok2').set({ ...base, replyMethod: 'email', replyValue: 'casey@example.com' }),
+      'email is a valid reply method'
+    );
+
+    // An invented method would be stored verbatim and shown to the vendor.
+    await assertFails(
+      customer.ref('enquiries/bad1').set({ ...base, replyMethod: 'carrier-pigeon', replyValue: 'x' }),
+      'an invented reply method must be rejected'
+    );
+
+    // An empty value leaves the enquiry unanswerable.
+    await assertFails(
+      customer.ref('enquiries/bad2').set({ ...base, replyMethod: 'email', replyValue: '' }),
+      'an empty reply value must be rejected'
+    );
+
+    // Unbounded text in a field the vendor reads is a storage and rendering risk.
+    await assertFails(
+      customer.ref('enquiries/bad3').set({ ...base, replyMethod: 'email', replyValue: 'a'.repeat(121) }),
+      'an overlong reply value must be rejected'
+    );
+
+    // Still optional overall so enquiries written before this field existed remain
+    // valid, and the customer still cannot be forged.
+    await assertSucceeds(customer.ref('enquiries/legacy').set(base), 'an enquiry without reply details stays valid');
+    await assertFails(
+      customer.ref('enquiries/bad4').set({ ...base, vendorId: 'vendor2' }),
+      'a customer must not enquire about another vendor product'
+    );
+  });
+
+  test('every wildcard node is a real Firebase wildcard, not a literal name', async () => {
+    // Firebase treats any $-prefixed child as a wildcard keyed on the REST of the
+    // name. So `$id` is a wildcard for ids literally containing "id", and
+    // `enquiries/$id` would not match a push-id key. This asserts the structure
+    // directly rather than trusting a write to reveal it.
+    await fresh();
+    await seed({ 'products/p1': { ownerUid: 'vendor1', vendorId: 'vendor1', name: 'Item', categoryId: 'general', status: 'PUBLISHED' } });
+
+    const customer = asUser('customer1', 'casey@example.com');
+    const base = {
+      productId: 'p1', vendorId: 'vendor1', customerUid: 'customer1',
+      message: 'Is this still available please', status: 'NEW', createdAt: 1
+    };
+
+    // A push-id key contains no "id" substring, so this only passes if the node is
+    // a genuine wildcard.
+    const generated = '-N1234567890abcdef';
+    await assertSucceeds(
+      customer.ref(`enquiries/${generated}`).set(base),
+      'enquiries must accept a generated key, so its wildcard must be real'
+    );
+    await assertFails(
+      customer.ref(`enquiries/${generated}`).set({ ...base, vendorId: 'vendor2' }),
+      'and the rules must still apply to a generated key'
+    );
+  });

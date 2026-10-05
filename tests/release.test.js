@@ -961,14 +961,15 @@ const privateDirs = ['admin', 'vendor', 'account', 'js'];
     const record = panel.indexOf('await recordEnquiry');
     assert.ok(record < open, 'the enquiry must be stored before the link is opened');
 
-    // Every generated product page must offer the panel where a vendor exists.
+// The generated product page routes to the vendor profile with plain anchors, so
+    // it works without JavaScript and no longer pulls in the Firebase SDK.
     const build = read('scripts/build-seo.js');
-    assert.match(build, /data-contact-vendor/, 'product pages need the contact trigger');
-    assert.match(build, /data-contact-mount/, 'product pages need a mount point');
-    assert.match(build, /renderContactPanel/, 'the trigger must render the panel');
-    // The SDK is only worth fetching once the customer asks.
-    assert.match(build, /await import\('\/js\/contact-vendor\.js'\)/,
-      'the contact module must be imported on demand');
+    assert.match(build, /vendor-profile\.html\?id=/,
+      'a product page must offer a link to the vendor profile');
+    assert.match(build, /enquiry\.html\?vendor=/,
+      'a product page must offer a way to send an enquiry about it');
+    assert.doesNotMatch(build, /data-contact-vendor/,
+      'the contact panel belongs on the vendor profile, not the product page');
   });
 
   test('an enquiry reaches the vendor without needing a mail server', () => {
@@ -1227,4 +1228,148 @@ assert.ok(existsSync(file), `${file} must exist`);
     assert.ok(big, 'the popup image must be locatable');
     assert.match(big[1], /loading\s*=\s*['"]lazy['"]/,
       'the popup image is hidden until clicked and should stay lazy');
+  });
+
+  test('the vendor profile offers both paths and the enquiry form needs a way to reply', () => {
+    const profile = read('vendor-profile.html');
+    const enquiry = read('enquiry.html');
+
+    // A customer who decides they want the product lands on the vendor first,
+    // then chooses. Both actions must be visible on that page.
+    assert.match(profile, /Contact vendor/, 'the profile must offer direct contact');
+    assert.match(profile, /Send an enquiry/, 'the profile must offer sending an enquiry');
+    assert.match(profile, /renderContactPanel/,
+      'the profile must host the contact panel');
+    // Imported on demand so reading the listing costs nothing.
+    assert.match(profile, /await import\('\/js\/contact-vendor\.js'\)/,
+      'the contact module must only load when the customer asks to contact');
+
+    // Only an active vendor is shown. The rules refuse the read, but the page
+    // must not render an empty shell for a suspended or deleted vendor either.
+    assert.match(profile, /status !== 'ACTIVE'/,
+      'the profile must refuse to render a vendor that is not active');
+    assert.match(profile, /SAFE_ID/,
+      'the vendorId comes off the query string and must be validated before use');
+
+    // The enquiry cannot be answered without a way to reply, so both the method
+    // and its value are required in the form and constrained in the rules.
+    for (const [file, name] of [[enquiry, 'enquiry.html']]) {
+      assert.match(file, /replyMethod/, `${name} must ask how the vendor can reply`);
+      assert.match(file, /replyValue/, `${name} must collect the reply details`);
+      assert.match(file, /validateReply/, `${name} must validate the reply details`);
+    }
+assert.match(enquiry, /String\(value\.value\)\.trim\(\)\.slice\(0, 120\)/,
+      'the reply value must be length bounded before storage');
+
+    // An anonymous customer cannot store an enquiry at all, since the rules
+    // require customerUid to be the signed-in user. Send them to sign in.
+    assert.match(enquiry, /auth\.currentUser/,
+      'the enquiry form must handle a signed-out visitor');
+    assert.match(enquiry, /login\.html\?next=/,
+      'a signed-out visitor must be sent to sign in and returned');
+
+    const rules = JSON.parse(read('firebase/database.rules.json')).rules;
+    // enquiries uses `$id` as its wildcard key while some other nodes use `$uid`.
+// Both are valid Firebase wildcards - the name after the $ is only used as the
+// variable name in rules - so find the single child node rather than assuming.
+const enquiryChild = Object.entries(rules.enquiries).find(([key]) => key.startsWith('$'));
+assert.ok(enquiryChild, 'enquiries must have a wildcard child node');
+const validate = enquiryChild[1]['.validate'];
+assert.ok(validate, 'the enquiry wildcard must carry a .validate rule');
+    assert.match(validate, /replyMethod/,
+      'the rules must constrain the reply method');
+    assert.match(validate, /replyValue/,
+      'the rules must constrain the reply value');
+    assert.match(validate, /length <= 120/,
+      'the rules must bound the stored reply value');
+  });
+
+  test('an admin can delete and restore any product, and sees vendor contacts', () => {
+    const admin = read('js/admin.js');
+    const products = read('admin/products.html');
+    const vendors = read('admin/vendors.html');
+
+    // Delete is soft: the record survives for the audit trail and any live
+    // enquiry, and the public read already excludes anything with deletedAt.
+    assert.match(admin, /export async function softDelete/,
+      'there must be a soft delete for products');
+    assert.match(admin, /deletedAt: serverTimestamp\(\)/,
+      'a soft delete must record when it happened');
+    assert.match(admin, /export async function restore/,
+      'a soft delete must be reversible');
+    assert.match(admin, /action: `delete_\$\{path\}`/,
+      'a delete must be written to the audit log');
+    assert.doesNotMatch(admin, /export async function softDelete[\s\S]*?remove\(ref\(database, `\$\{path\}/,
+      'products must not be hard removed');
+
+    // Restore returns to ARCHIVED rather than straight back on sale, so an admin
+    // reviews before a product reappears publicly.
+    const restore = /export async function restore\([\s\S]*?\n}/.exec(admin);
+    assert.ok(restore, 'restore must exist');
+    assert.match(restore[0], /status: 'ARCHIVED'/,
+      'restoring must not silently republish a product');
+
+    assert.match(products, /softDelete\('products'/, 'the products page must offer delete');
+    assert.match(products, /Restore/, 'the products page must offer restore');
+    assert.match(products, /deletedAt/, 'the products page must show deleted products separately');
+    assert.match(products, /requireAdmin/, 'the products page must remain admin gated');
+
+    // Vendor contact details for follow-up, through the same sanitiser the
+    // customer-facing panel uses so a hostile value cannot reach an admin.
+    assert.match(products, /contactChannels\(vendor\)/,
+      'the products page must show the vendor contact details');
+    assert.match(vendors, /contactChannels\(vendor\)/,
+      'the vendors page must show every contact channel, not just name, email and phone');
+    assert.match(vendors, /contact-links\.js/,
+      'admin contact display must reuse the sanitiser');
+
+    // The rules must still hide a deleted product from the public and from its
+    // own vendor.
+    const rules = JSON.parse(read('firebase/database.rules.json')).rules;
+    const productChild = Object.entries(rules.products).find(([k]) => k.startsWith('$'));
+    assert.match(productChild[1]['.read'], /!data\.child\('deletedAt'\)\.exists\(\)/,
+      'a deleted product must not be publicly readable');
+  });
+
+  test('signup requires the terms to be accepted, and records it', () => {
+    for (const page of ['register.html', 'vendor/register.html']) {
+      const text = read(page);
+
+      // Present, required, and linked to the actual terms.
+      assert.match(text, /id="acceptTerms"/, `${page} must offer a terms checkbox`);
+      assert.match(text, /terms and conditions<\/a>/, `${page} must link to the terms`);
+      assert.match(text, /type="checkbox"/, `${page} checkbox must be a checkbox`);
+      // Assert on the control as a whole, not on the word "required" appearing
+      // somewhere in the file, so removing the attribute is actually caught.
+      assert.match(text, /<input id="acceptTerms" type="checkbox" required>/,
+        `${page} checkbox must be marked required so the browser also enforces it`);
+
+      // Submit must be blocked until it is ticked. required alone would stop
+      // submission with no explanation and record nothing.
+      assert.match(text, /submit\.disabled = true/,
+        `${page} must disable submit until the terms are accepted`);
+      assert.match(text, /terms\.addEventListener\('change'/,
+        `${page} must re-enable submit once accepted`);
+
+      // And the acceptance is stored, so a dispute can be settled.
+      assert.match(text, /termsAcceptedAt/,
+        `${page} must record when the terms were accepted`);
+    }
+
+    // The vendor form must also state the scope of the marketplace, otherwise an
+    // applicant cannot know why a listing was rejected.
+    const vendor = read('vendor/register.html');
+    assert.match(vendor, /notice/,
+      'the vendor form must carry a notice');
+    assert.match(vendor, /[Mm]edical/,
+      'the vendor notice must state the medical scope');
+    assert.match(vendor, /will not be approved|not be approved/,
+      'the vendor notice must say non-health listings will not be approved');
+
+    // The rules must not block storing the extra field: hasChildren is a minimum
+    // rather than an allow-list, so this is asserted to prevent that changing.
+    const rules = JSON.parse(read('firebase/database.rules.json')).rules;
+    const userChild = Object.entries(rules.users).find(([k]) => k.startsWith('$'));
+    assert.match(userChild[1]['.validate'], /hasChildren\(\['name', 'email', 'role', 'active'\]\)/,
+      'the user validation is a minimum, so termsAcceptedAt is permitted');
   });

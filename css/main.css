@@ -104,3 +104,8 @@ button, .button { border: 0; border-radius: 6px; cursor: pointer; display: inlin
 .contact-panel__terms input { width: auto; margin-top: 3px; flex: none; }
 .contact-panel button[disabled] { opacity: .55; cursor: not-allowed; }
 .enquiry-channel { font-weight: 700; color: var(--green); }
+
+.notice { border-left: 3px solid var(--coral); background: #fdf1ee; padding: 12px 14px; margin: 12px 0; }
+.notice strong { color: var(--coral); }
+.terms-consent { display: flex; gap: 10px; align-items: flex-start; font-weight: 700; margin: 14px 0; }
+.terms-consent input { width: auto; margin-top: 3px; flex: none; }

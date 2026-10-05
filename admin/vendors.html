@@ -10,6 +10,7 @@
 <script type="module">
 import { requireAdmin } from '../js/auth.js';
 import { database } from '../js/firebase.js';
+import { contactChannels } from '../js/contact-links.js';
 import { push, get, ref, update, remove, serverTimestamp, query, orderByChild, equalTo } from 'https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js';
 
 requireAdmin(async (user, profile) => {const list = document.querySelector('#list');
@@ -60,8 +61,21 @@ async function syncProducts(vendorId, vendorStatus) {
     const title = document.createElement('h2');
     title.textContent = vendor.businessName || 'Unnamed vendor';
 
+    // Full contact details for every vendor, not only the ones awaiting review, so
+    // an admin can follow up on an active listing directly. contactChannels is the
+    // same sanitiser the customer-facing panel uses, so a vendor-supplied link is
+    // validated before an admin sees or clicks it.
     const details = document.createElement('p');
-    details.textContent = `${vendor.contactName || ''} · ${vendor.email || ''} · ${vendor.phone || ''}`;
+    const channels = contactChannels(vendor);
+    details.textContent = channels.length
+      ? channels.map((channel) => `${channel.label}: ${channel.raw}`).join(' | ')
+      : 'No contact details published.';
+
+    if (vendor.description) {
+      const description = document.createElement('p');
+      description.textContent = vendor.description;
+      card.append(description);
+    }
 
     const status = document.createElement('p');
     status.textContent = `Status: ${vendor.status || 'ACTIVE'}`;
