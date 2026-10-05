@@ -1045,10 +1045,14 @@ test('nothing above the fold blocks the first paint', () => {
     assert.ok(existsSync('public/fonts/DMSans-latin.woff2'),
       'the fonts must be staged into the publish output');
 
-    // An image referenced by a stylesheet is only discovered after the CSS
-    // arrives, so the hero is preloaded explicitly.
-    assert.match(build, /rel="preload"[^>]*hero\.jpeg/,
-      'the hero background must be preloaded so it does not queue behind the CSS');
+// An image referenced by a stylesheet is only discovered after the CSS
+    // arrives, so the hero is preloaded explicitly. Assert the preloaded path
+    // actually exists rather than naming an extension, since the optimiser
+    // rewrites these files to webp.
+    const heroPreload = /rel="preload"[^>]*href="(\/Visuamall\/general\/hero\.[a-z]+)"/.exec(build);
+    assert.ok(heroPreload, 'the hero background must be preloaded so it does not queue behind the CSS');
+    assert.ok(existsSync(heroPreload[1].slice(1)),
+      `the preloaded hero must exist: ${heroPreload[1]}`);
   });
 
   test('the heaviest images are converted and not shipped oversized', () => {
@@ -1081,4 +1085,90 @@ assert.ok(existsSync(file), `${file} must exist`);
     assert.ok(!all.sharp, 'sharp is a one-off tool and must never be a dependency');
     assert.ok(!existsSync('optimize-images.mjs'),
       'the one-off optimiser must not be left in the repository');
+  });
+
+  test('oversized images cannot be committed, and the build stays dependency-free', () => {
+    const pkg = JSON.parse(read('package.json'));
+
+    // The conversion needs sharp; the enforcement must not. The publish pipeline
+    // runs in a clean checkout with nothing installed, so anything it calls has to
+    // work on Node builtins alone.
+    assert.match(pkg.scripts['check:images'], /check-images\.mjs/,
+      'the image budget must be checkable without dependencies');
+    assert.match(pkg.scripts['publish:prepare'], /check:images/,
+      'the build must run the image budget check');
+
+    const check = read('scripts/check-images.mjs');
+    assert.doesNotMatch(check, /from ['"](?!node:)[^'"]+['"]|require\(['"](?!node:)/,
+      'the budget check must use Node builtins only');
+    assert.match(check, /BUDGET_BYTES/, 'the budget must be defined in one place');
+    assert.match(check, /process\.exitCode = 1/,
+      'an oversized image must fail the build, not warn');
+
+    const optimise = read('scripts/optimize-images.mjs');
+    assert.match(optimise, /npm install --no-save sharp/,
+      'the optimiser must document installing sharp transiently');
+    assert.match(optimise, /BUDGET_BYTES/,
+      'the optimiser and the check must share one budget');
+    assert.match(optimise, /\.webp\(\{ quality/,
+      'conversion must produce webp');
+    assert.match(optimise, /MAX_EDGE/,
+      'oversized dimensions must be capped, not just recompressed');
+
+    // A renamed asset with a stale reference breaks the page silently, so the
+    // verifier has to exist and be runnable.
+    const verify = read('scripts/repoint-images.mjs');
+    assert.match(verify, /MISSING/, 'the verifier must report which file is missing');
+    assert.match(verify, /process\.exitCode = dangling \? 1 : 0/,
+      'a dangling reference must fail');
+
+    // sharp must never become a recorded dependency.
+    const all = { ...pkg.dependencies, ...pkg.devDependencies };
+    for (const name of Object.keys(all)) {
+      assert.notEqual(name, 'sharp', 'sharp is a one-off tool, not a dependency');
+    }
+  });
+
+  test('every image reference points at a file that exists', () => {
+    // Walk the shipped pages and stylesheets and resolve every Visuamall path.
+    // This is the check that catches a rename that the build cannot see: the
+    // publish step only proves a file was copied, not that anything points at it.
+    const files = [];
+    const collect = (dir, prefix = '') => {
+      for (const entry of fs.readdirSync(path.join(root, dir), { withFileTypes: true })) {
+        if (['node_modules', '.git', 'public', 'tests'].includes(entry.name)) continue;
+        const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
+        if (entry.isDirectory()) collect(`${dir}/${entry.name}`, rel);
+        else if (/\.(html|css|js|mjs)$/i.test(entry.name)) files.push(rel);
+      }
+    };
+    collect('.');
+
+    const pattern = /(?:\.\/|\/)?(Visuamall\/[^"'()\s<>,;{}]+\.(?:png|jpe?g|webp|avif|gif|svg))/g;
+    const dangling = [];
+    for (const file of files) {
+      const text = fs.readFileSync(path.join(root, file), 'utf8');
+      for (const match of text.matchAll(pattern)) {
+        if (!existsSync(match[1])) dangling.push(`${file} -> ${match[1]}`);
+      }
+    }
+    assert.deepEqual(dangling, [], `images referenced but not on disk:\n${dangling.join('\n')}`);
+  });
+
+  test('a vendor upload is optimised before it is stored', () => {
+    const products = read('js/products.js');
+
+    // This is the "new file uploaded" path. A vendor picking a 4000px phone photo
+    // must not be able to store it whole: the image is decoded, scaled and
+    // re-encoded in the browser before anything is written to the database.
+    assert.match(products, /maxDimension = 700/,
+      'uploaded images must be capped in size');
+    assert.match(products, /quality = 0\.75/,
+      'uploaded images must be re-compressed');
+    assert.match(products, /toDataURL\('image\/jpeg'/,
+      'uploads must be re-encoded to a compressed format');
+    assert.match(products, /Math\.min\(1, maxDimension/,
+      'the cap must only shrink, never enlarge');
+    assert.match(products, /9 \* 1024 \* 1024/,
+      'an oversized source file must be rejected outright');
   });

@@ -54,7 +54,7 @@ button, .button { border: 0; border-radius: 6px; cursor: pointer; display: inlin
 .menu-trigger { display: none; width: 38px; min-height: 38px; padding: 8px; border-radius: 50%; background: transparent; flex-direction: column; gap: 4px; }
 .menu-trigger span { width: 20px; height: 2px; background: #850fa8; }
 .live-main { max-width: 1220px; margin: auto; padding: 12px 24px 64px; }
-.arrival-hero { min-height: 360px; display: flex; align-items: center; justify-content: space-between; overflow: hidden; padding: 28px 7%; border-radius: 10px; background: url('../Visuamall/general/hero.jpeg') center/cover; }
+.arrival-hero { min-height: 360px; display: flex; align-items: center; justify-content: space-between; overflow: hidden; padding: 28px 7%; border-radius: 10px; background: url('../Visuamall/general/hero.webp') center/cover; }
 .arrival-copy > span { font-weight: 800; font-size: .95rem; } .arrival-copy h1 { margin: 10px 0 25px; display: grid; font: 900 clamp(3rem, 7vw, 5.8rem)/.88 'Space Grotesk', sans-serif; }
 .live-explore { display: inline-block; padding: 12px 30px; color: #111; background: #e5ddd1; border-radius: 14px; font-weight: 800; text-decoration: none; }
 .arrival-hero > img { width: min(51%, 560px); height: 360px; object-fit: contain; align-self: end; }
