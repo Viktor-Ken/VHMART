@@ -1,27 +1,4 @@
-/* Self-hosted variable fonts, latin subset only (58 KB total).
-
-This used to be an @import of the Google Fonts stylesheet from the first line of
-this file. An @import is discovered only after this stylesheet has loaded, so the
-browser made two chained round trips - to us, then to fonts.googleapis.com -
-before it could resolve a single glyph. That, with the hero images queuing behind
-it, held first contentful paint at 2.4s. DM Sans and Space Grotesk are both
-licensed under the SIL Open Font License, which permits redistribution. */
-@font-face {
-  font-family: 'DM Sans';
-  font-style: normal;
-  font-weight: 400 700;
-  font-display: swap;
-  src: url('/fonts/DMSans-latin.woff2') format('woff2');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+2000-206F, U+2122, U+2191, U+2193, U+2212, U+2215;
-}
-@font-face {
-  font-family: 'Space Grotesk';
-  font-style: normal;
-  font-weight: 500 700;
-  font-display: swap;
-  src: url('/fonts/SpaceGrotesk-latin.woff2') format('woff2');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+2000-206F, U+2122, U+2191, U+2193, U+2212, U+2215;
-}
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Space+Grotesk:wght@500;700&display=swap');
 :root { --ink: #182426; --muted: #607174; --paper: #f6f8f4; --line: #dce5df; --green: #176b55; --coral: #e76f51; --yellow: #f5c451; }
 :root[data-theme="dark"] { --ink: #e8f0ee; --muted: #a7b7b2; --paper: #101614; --line: #24312d; --green: #3fbf98; --coral: #f08a68; --yellow: #f5c451; }
 * { box-sizing: border-box; } body { margin: 0; color: var(--ink); background: var(--paper); font-family: 'DM Sans', sans-serif; } a { color: inherit; } button, input, select, textarea { font: inherit; }
@@ -54,7 +31,7 @@ button, .button { border: 0; border-radius: 6px; cursor: pointer; display: inlin
 .menu-trigger { display: none; width: 38px; min-height: 38px; padding: 8px; border-radius: 50%; background: transparent; flex-direction: column; gap: 4px; }
 .menu-trigger span { width: 20px; height: 2px; background: #850fa8; }
 .live-main { max-width: 1220px; margin: auto; padding: 12px 24px 64px; }
-.arrival-hero { min-height: 360px; display: flex; align-items: center; justify-content: space-between; overflow: hidden; padding: 28px 7%; border-radius: 10px; background: url('../Visuamall/general/hero.webp') center/cover; }
+.arrival-hero { min-height: 360px; display: flex; align-items: center; justify-content: space-between; overflow: hidden; padding: 28px 7%; border-radius: 10px; background: url('../Visuamall/general/hero.jpeg') center/cover; }
 .arrival-copy > span { font-weight: 800; font-size: .95rem; } .arrival-copy h1 { margin: 10px 0 25px; display: grid; font: 900 clamp(3rem, 7vw, 5.8rem)/.88 'Space Grotesk', sans-serif; }
 .live-explore { display: inline-block; padding: 12px 30px; color: #111; background: #e5ddd1; border-radius: 14px; font-weight: 800; text-decoration: none; }
 .arrival-hero > img { width: min(51%, 560px); height: 360px; object-fit: contain; align-self: end; }
@@ -80,32 +57,5 @@ button, .button { border: 0; border-radius: 6px; cursor: pointer; display: inlin
 [data-theme="dark"] .live-empty, [data-theme="dark"] .live-error { color: var(--muted); }
 .avatar-popup { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 100; padding: 8px; border-radius: 16px; background: #fff; box-shadow: 0 16px 50px rgba(0,0,0,.4); } .avatar-popup img { display: block; max-width: min(440px, 80vw); max-height: 62vh; border-radius: 10px; } .avatar-popup-close { position: absolute; top: -16px; right: -16px; width: 36px; height: 36px; min-height: 36px; padding: 0; border-radius: 50%; font-size: 1.3rem; line-height: 1; color: #fff; background: var(--coral, #e76f51); box-shadow: 0 2px 8px rgba(0,0,0,.3); cursor: pointer; }
 [data-theme="dark"] .avatar-popup { background: #131b18; }
-@media (max-width: 800px) { .live-header { padding: 12px 16px; } .menu-trigger { display: inline-flex; } .live-links { display: none; } .live-main { padding: 8px 16px 48px; } .arrival-hero { min-height: 380px; padding: 28px 22px; } .arrival-hero > img { width: min(51%, 560px); height: 360px; object-fit: contain; align-self: end; } .spotlight-grid, .picks-grid { grid-template-columns: repeat(2, 1fr); } .benefits { grid-template-columns: 1fr; gap: 18px; } .live-footer { flex-direction: column; padding: 30px 24px; } .mobile-drawer { display: flex; position: fixed; inset: 0 auto 0 0; width: min(320px, 82vw); padding: 24px; z-index: 30; transform: translateX(-105%); transition: transform .25s ease; flex-direction: column; background: url('../Visuamall/general/menu bg.avif') center/cover; } .mobile-drawer.is-open { transform: translateX(0); } .mobile-drawer a { color: white; font-weight: 800; text-decoration: none; padding: 15px 0; } .drawer-close { align-self: end; color: white; background: transparent; font-size: 2rem; min-height: 36px; padding: 0 8px; } .drawer-overlay { display: block; position: fixed; inset: 0; z-index: 20; opacity: 0; visibility: hidden; background: rgba(0,0,0,.45); transition: opacity .25s ease; } .drawer-overlay.is-open { opacity: 1; visibility: visible; } }
-@media (max-width: 480px) { .arrival-hero { min-height: 380px; padding: 20px 16px; align-items: center; } .arrival-hero > img { width: 50%; height: 260px; align-self: end; } .spotlight-grid, .picks-grid { grid-template-columns: 1fr 1fr; gap: 10px; } .spotlight-card { min-height: 175px; padding: 10px; } .spotlight-card img { height: 110px; } }
-/* Password field with a show/hide (eye) control. The wrapper is positioned so
-   the button can sit over the input's right edge without disturbing the label's
-   grid layout, and the override for justify-self is needed because
-   .form-panel button { justify-self: start } would otherwise stretch it. */
-.password-field { position: relative; display: block; }
-.password-field input { padding-right: 56px; }
-.password-toggle { position: absolute; top: 50%; right: 2px; transform: translateY(-50%); justify-self: end; width: 44px; min-height: 44px; height: 44px; padding: 0; color: var(--muted); background: transparent; }
-.password-toggle:hover { color: var(--green); background: #e5efe9; }
-.password-toggle:focus-visible { outline: 2px solid var(--green); outline-offset: -2px; }
-.password-toggle svg { display: block; }
-[data-theme="dark"] .password-toggle:hover { color: var(--green); background: #1b2724; }
-@media (prefers-reduced-motion: no-preference) { .password-toggle svg { transition: transform .15s ease; } .password-toggle:hover svg { transform: scale(1.08); } }
-/* Contact vendor panel. The channel list is a radio group so a customer picks one
-   method, and the terms checkbox is a separate gate: neither alone is enough to
-   continue. */
-.contact-panel__channels { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; margin: 12px 0; }
-.contact-panel__channel { display: flex; gap: 10px; align-items: flex-start; padding: 6px 0; cursor: pointer; word-break: break-word; }
-.contact-panel__channel input { width: auto; margin-top: 3px; flex: none; }
-.contact-panel__terms { display: flex; gap: 10px; align-items: flex-start; font-weight: 700; margin: 12px 0 4px; }
-.contact-panel__terms input { width: auto; margin-top: 3px; flex: none; }
-.contact-panel button[disabled] { opacity: .55; cursor: not-allowed; }
-.enquiry-channel { font-weight: 700; color: var(--green); }
-
-.notice { border-left: 3px solid var(--coral); background: #fdf1ee; padding: 12px 14px; margin: 12px 0; }
-.notice strong { color: var(--coral); }
-.terms-consent { display: flex; gap: 10px; align-items: flex-start; font-weight: 700; margin: 14px 0; }
-.terms-consent input { width: auto; margin-top: 3px; flex: none; }
+@media (max-width: 800px) { .live-header { padding: 12px 16px; } .menu-trigger { display: inline-flex; } .live-links { display: none; } .live-main { padding: 8px 16px 48px; } .arrival-hero { min-height: 380px; padding: 28px 22px; } .arrival-hero > img { width: 57%; } .spotlight-grid, .picks-grid { grid-template-columns: repeat(2, 1fr); } .benefits { grid-template-columns: 1fr; gap: 18px; } .live-footer { flex-direction: column; padding: 30px 24px; } .mobile-drawer { display: flex; position: fixed; inset: 0 auto 0 0; width: min(320px, 82vw); padding: 24px; z-index: 30; transform: translateX(-105%); transition: transform .25s ease; flex-direction: column; background: url('../Visuamall/general/menu bg.avif') center/cover; } .mobile-drawer.is-open { transform: translateX(0); } .mobile-drawer a { color: white; font-weight: 800; text-decoration: none; padding: 15px 0; } .drawer-close { align-self: end; color: white; background: transparent; font-size: 2rem; min-height: 36px; padding: 0 8px; } .drawer-overlay { display: block; position: fixed; inset: 0; z-index: 20; opacity: 0; visibility: hidden; background: rgba(0,0,0,.45); transition: opacity .25s ease; } .drawer-overlay.is-open { opacity: 1; visibility: visible; } }
+@media (max-width: 480px) { .arrival-hero { min-height: 430px; align-items: start; } .arrival-copy { z-index: 1; } .arrival-hero > img { position: absolute; width: 86%; right: -12%; margin-top: 165px; } .spotlight-grid, .picks-grid { grid-template-columns: 1fr 1fr; gap: 10px; } .spotlight-card { min-height: 175px; padding: 10px; } .spotlight-card img { height: 110px; } }

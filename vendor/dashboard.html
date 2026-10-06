@@ -25,11 +25,11 @@
 <!-- seo:end -->
 </head>
 <body><main class="page">
-<nav class="nav"><a class="brand" href="">VHMART</a><a href="products">Products</a><a href="enquiries">Enquiries</a><a href="profile">Profile</a><button id="logout" type="button">Sign out</button></nav>
+<nav class="nav"><a class="brand" href="../index.html">VHMART</a><a href="products.html">Products</a><a href="enquiries.html">Enquiries</a><a href="profile.html">Profile</a><button id="logout" type="button">Sign out</button></nav>
 <h1>Vendor dashboard</h1>
 <div id="stats" class="category-grid"><p class="empty">Loading dashboard...</p></div>
-<section class="form-panel" aria-labelledby="dashboard-products-title"><h2 id="dashboard-products-title">My products</h2><div id="dashboardProducts"><p class="empty">Loading products...</p></div><p><a href="products">View all products</a></p></section>
-<section class="form-panel" aria-labelledby="dashboard-enquiries-title"><h2 id="dashboard-enquiries-title">Recent enquiries</h2><div id="dashboardEnquiries"><p class="empty">Loading enquiries...</p></div><p><a href="enquiries">View all enquiries</a></p></section>
+<section class="form-panel" aria-labelledby="dashboard-products-title"><h2 id="dashboard-products-title">My products</h2><div id="dashboardProducts"><p class="empty">Loading products...</p></div><p><a href="products.html">View all products</a></p></section>
+<section class="form-panel" aria-labelledby="dashboard-enquiries-title"><h2 id="dashboard-enquiries-title">Recent enquiries</h2><div id="dashboardEnquiries"><p class="empty">Loading enquiries...</p></div><p><a href="enquiries.html">View all enquiries</a></p></section>
 <p id="message" role="status"></p>
 </main>
 <script type="module">
@@ -95,7 +95,7 @@ function renderProducts(products) {
     status.textContent = `Status: ${product.status === 'PUBLISHED' ? 'LIVE' : (product.status || 'UNKNOWN')}`;
     const edit = document.createElement('a');
     edit.className = 'button button--quiet';
-    edit.href = `edit-product?id=${encodeURIComponent(product.id)}`;
+    edit.href = `edit-product.html?id=${encodeURIComponent(product.id)}`;
     edit.textContent = 'Edit product';
     item.append(title, price, status, edit);
     productsRoot.append(item);
@@ -122,10 +122,8 @@ function renderEnquiries(enquiries) {
 }
 
 requireUser(async (user, profile) => {
-  if (profile.role !== 'vendor') { location.href = ''; return; }
+  if (profile.role !== 'vendor') { location.href = '../index.html'; return; }
   try {
-    if (profile.deletedAt) { location.href = 'deleted'; return; }
-    if (profile.status !== 'ACTIVE') { location.href = 'pending'; return; }
     const products = await ownedProducts(user.uid);
     let enquirySnapshot = await get(ref(database, `vendor_enquiries/${user.uid}`));
     if (!enquirySnapshot.exists()) {
@@ -145,4 +143,4 @@ requireUser(async (user, profile) => {
     message.textContent = 'Dashboard data could not be loaded.';
   }
 }, '../login.html', (error) => { console.error('Vendor authentication failed:', error); statsRoot.innerHTML = '<p class="error">We could not load your account. Please refresh and try again.</p>'; showError(productsRoot, 'Your products could not be loaded.'); showError(enquiriesRoot, 'Your enquiries could not be loaded.'); message.textContent = 'Your account could not be loaded.'; });
-</script><script src="../js/brand-avatar.js"></script><script src="../js/theme.js"></script><script src="../js/track.js"></script></body></html>
+</script><script src="../js/brand-avatar.js"></script><script src="../js/theme.js"></script></body></html>

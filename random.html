@@ -32,8 +32,8 @@
 </head>
 <body>
     <header class="site-header"><nav class="nav" aria-label="Main navigation">
-        <a class="brand" href="">VHMART</a>
-        <div class="nav-links"><a href="marketplace">Marketplace</a><a href="categories">Categories</a><a href="contact">Contact</a><a href="login">Sign in</a><a class="nav-link--active" href="random" aria-current="page">Random</a></div>
+        <a class="brand" href="index.html">VHMART</a>
+        <div class="nav-links"><a href="marketplace.html">Marketplace</a><a href="categories.html">Categories</a><a href="contact.html">Contact</a><a href="login.html">Sign in</a><a class="nav-link--active" href="random.html" aria-current="page">Random</a></div>
     </nav></header>
     <main class="page"><div class="section-heading"><div><p>Fresh from the marketplace</p><h1>Random picks</h1><p>Each reshuffle reveals a different selection of published products from VHMART vendors.</p></div><button id="reshuffle" class="button button--primary" type="button">Reshuffle</button></div><p id="status" class="empty">Loading products...</p><div id="products" class="product-grid"></div></main>
     <script type="module">
@@ -45,5 +45,5 @@
         try { products = await getPublishedProducts(); render(); } catch (error) { status.className = 'error'; status.textContent = 'We could not load products right now. Please try again.'; console.error(error); }
     </script>
 <script src="js/brand-avatar.js"></script><script src="js/theme.js"></script>
-<script src="js/track.js"></script></body>
+</body>
 </html>

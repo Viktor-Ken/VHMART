@@ -43,14 +43,14 @@ const FORBIDDEN = [
 const REQUIRED = [
   'index.html',
   'marketplace.html',
+  'contact.html',
   'login.html',
-  'account.html',
+  'register.html',
+  'vendor.html',
   'css/main.css',
   'js/auth.js',
   'js/firebase.js',
-  'js/password-toggle.js',
   'admin/dashboard.html',
-  'admin/accounts.html',
   'admin/login.html',
   'robots.txt',
   'sitemap.xml'
@@ -64,22 +64,6 @@ for (const rel of FORBIDDEN) {
 
 for (const rel of REQUIRED) {
   if (!existsSync(path.join(OUT, rel))) problems.push(`missing from publish output: ${rel}`);
-}
-
-// The eye control is easy to lose in a minified page, so assert it survived.
-for (const page of ['login.html', 'admin/login.html', 'register.html', 'vendor/register.html']) {
-  const file = path.join(OUT, page);
-  if (!existsSync(file)) continue;
-  const html = await readFile(file, 'utf8');
-  if (!html.includes('data-password-toggle="password"')) {
-    problems.push(`${page} lost its password visibility control`);
-  }
-}
-
-// An admin must never be labelled a customer in their own account view.
-const accountHtml = await readFile(path.join(OUT, 'account.html'), 'utf8');
-if (!accountHtml.includes('Administrator')) {
-  problems.push('account.html does not recognise the admin role');
 }
 
 if (problems.length) {

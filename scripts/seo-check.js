@@ -29,11 +29,15 @@ async function resolves(route) {
 const PUBLIC_PAGES = [
   'index.html', 'marketplace.html', 'categories.html', 'contact.html',
   'vendor.html', 'random.html', 'login.html', 'register.html',
-  'terms-and-conditions.html', 'account.html', 'account-deleted.html',
-  'vendor/pending.html', 'vendor/deleted.html', 'vendor/dashboard.html',
+  'terms-and-conditions.html', 'vendor/dashboard.html',
   'vendor/products.html', 'vendor/add-product.html', 'vendor/edit-product.html',
   'vendor/enquiries.html', 'vendor/profile.html'
 ];
+
+// These pages have no static <h1> to check: random.html picks a random product,
+// and vendor.html needs a vendor id in the query string before it knows who the
+// heading should name.
+const NO_STATIC_H1 = new Set(['random.html', 'vendor.html']);
 
 const SITE_ORIGIN = 'https://vhmart.online';
 
@@ -88,7 +92,7 @@ for (const page of PUBLIC_PAGES) {
   }
 
   const h1Count = (html.match(/<h1[\s>]/g) || []).length;
-  if (page !== 'random.html' && h1Count !== 1) {
+  if (!NO_STATIC_H1.has(page) && h1Count !== 1) {
     problems.push(`${page}: has ${h1Count} <h1> elements, expected exactly 1`);
   }
 }
