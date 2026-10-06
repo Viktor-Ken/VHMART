@@ -1536,3 +1536,18 @@ assert.ok(validate, 'the enquiry wildcard must carry a .validate rule');
       assert.match(editor, new RegExp(`id: '${channel}'`), `${channel} must be editable`);
     }
   });
+
+  test('the current password field is marked up for password managers', () => {
+    const editor = read('js/profile-edit.js');
+
+    // field() prefixes every id with "profile-", so comparing the rendered id
+    // against a bare name never matches and the current-password field ends up
+    // advertised as a new password. Password managers then refuse to autofill
+    // the one field that needs the existing password.
+    assert.doesNotMatch(editor, /autocomplete = f\.input\.id ===/,
+      'autocomplete must compare the unprefixed field id, not the prefixed input id');
+    assert.match(editor, /f\.input\.autocomplete = f\.id === 'current-password' \? 'current-password' : 'new-password'/,
+      'the current password field must be advertised as current-password');
+    assert.match(editor, /return \{ wrap, input, id \};/,
+      'field() must expose the unprefixed id for that comparison');
+  });

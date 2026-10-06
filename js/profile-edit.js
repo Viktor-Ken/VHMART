@@ -69,7 +69,7 @@ function field(id, label, type = 'text', max = 300) {
   input.type = type;
   input.maxLength = max;
   wrap.append(input);
-  return { wrap, input };
+  return { wrap, input, id };
 }
 
 export function buildProfileForm(options = {}) {
@@ -222,7 +222,7 @@ export function renderPasswordForm(mount) {
   for (const f of [current, next, confirm]) {
     f.input.required = true;
     f.input.minLength = 8;
-    f.input.autocomplete = f.input.id === 'current-password' ? 'current-password' : 'new-password';
+    f.input.autocomplete = f.id === 'current-password' ? 'current-password' : 'new-password';
     // Mark the label as required for assistive tech, without a literal asterisk
     // repeated three times in the markup.
     f.wrap.firstChild.nodeValue = `${f.wrap.firstChild.nodeValue} *`;
