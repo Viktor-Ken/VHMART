@@ -1615,3 +1615,44 @@ assert.ok(validate, 'the enquiry wildcard must carry a .validate rule');
     assert.doesNotMatch(url[1], /change-password/,
       'that path does not exist');
   });
+
+  test('phone numbers are stored in international form', () => {
+    const links = read('js/contact-links.js');
+    const register = read('vendor/register.html');
+    const profile = read('vendor/profile.html');
+
+    // A trunk 0 must not survive into international format. +234 0803... is not
+    // a valid number, and it is the easiest way for a vendor to break their own
+    // contact links by typing a number the way they normally write it.
+    assert.match(links, /export function joinPhone/,
+      'phone joining must live in the shared module');
+    assert.match(links, /TRUNK_ZERO = \/\^0\+\//,
+      'a leading trunk zero must be stripped');
+    assert.match(links, /digits\.startsWith\('00'\)/,
+      'the 00 international prefix must be normalised away');
+
+    // Both forms must use it. register.html previously did raw string
+    // concatenation; profile.html saved whatever was typed, discarding the
+    // country code stored at registration and breaking the tel: link.
+    assert.match(register, /phone:joinPhone\(form\.countryCode\.value,form\.phone\.value\)/,
+      'register.html must join the code with the number');
+    assert.doesNotMatch(register, /form\.countryCode\.value\.trim\(\)\+form\.phone\.value\.trim\(\)/,
+      'raw concatenation must not return');
+    assert.match(profile, /phone:joinPhone\(form\.countryCode\.value,form\.phone\.value\)/,
+      'the profile form must not overwrite the code it saved at registration');
+    assert.match(profile, /whatsapp:joinPhone\(form\.waCountryCode\.value,form\.whatsapp\.value\)/,
+      'WhatsApp is international too and needs the same treatment');
+
+    // The profile form had no selector at all, so a vendor could not put the
+    // code back once the old save had stripped it.
+    assert.match(profile, /id="countryCode"/,
+      'the profile form needs a dialling code selector for phone');
+    assert.match(profile, /id="waCountryCode"/,
+      'the profile form needs one for WhatsApp too');
+    assert.match(profile, /selectCountryFor/,
+      'an existing stored number must preselect its country');
+
+    // tel: keeps the + so a dialer treats it as international.
+    assert.match(links, /tel:\$\{looksInternational\(value\) \? '\+' : ''\}/,
+      'a stored international number must keep its + in the tel: link');
+  });
