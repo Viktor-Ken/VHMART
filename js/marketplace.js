@@ -3,11 +3,11 @@ import { get, ref, query, orderByChild, equalTo } from "https://www.gstatic.com/
 
 export const categories = [
     { id: "general", name: "General", image: "Visuamall/general/bg1.avif" },
-    { id: "books", name: "Books", image: "Visuamall/general/book_1-removebg-preview.png" },
+    { id: "books", name: "Books", image: "Visuamall/general/book_1-removebg-preview.webp" },
     { id: "courses", name: "Courses", image: "Visuamall/general/bg1.avif" },
     { id: "hospital-wears", name: "Hospital wears", image: "Visuamall/general/bg1.avif" },
     { id: "wellness", name: "Wellness", image: "Visuamall/general/bg1.avif" },
-    { id: "hospital-lab-equipment", name: "Hospital & lab equipment", image: "Visuamall/general/hospital equipments/pink_pulse_oxi-removebg-preview.png" },
+    { id: "hospital-lab-equipment", name: "Hospital & lab equipment", image: "Visuamall/general/hospital equipments/pink_pulse_oxi-removebg-preview.webp" },
     { id: "health-travel", name: "Health travel", image: "Visuamall/general/bg1.avif" },
     { id: "fitness", name: "Fitness", image: "Visuamall/general/bg1.avif" },
     { id: "men-shoes", name: "Men shoes", image: "Visuamall/bgg3.avif" },
