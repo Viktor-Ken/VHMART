@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="../css/main.css"><title>Vendor Dashboard | VHMART</title></head>
+<body><header class="site-header"><nav class="nav" aria-label="Main navigation"><a class="brand" href="../">VHMART</a><div class="nav-links"><a href="../marketplace">Marketplace</a><button id="logout" type="button">Sign out</button></div></nav></header><main class="page"><h1>Vendor dashboard</h1><section class="form-panel"><div class="button-row"><a class="button button--primary" href="add-product">Add product</a><a class="button button--quiet" href="profile">Edit profile</a><a class="button button--quiet" href="products">Manage products</a><a class="button button--quiet" href="enquiries">Enquiries</a></div></section><section><h2>My products</h2><div id="products" class="product-grid"><p class="empty">Loading your products...</p></div></section></main>
+<script type="module">
+import { requireUser, logout } from '../js/auth.js';
+import { database } from '../js/firebase.js';
+import { get, ref, query, orderByChild, equalTo } from 'https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js';
+const logoutBtn=document.querySelector('#logout');logoutBtn.addEventListener('click',logout);
+const grid=document.querySelector('#products');
+requireUser(async(user,profile)=>{
+  if(profile.role!=='vendor'){location.href='../login';return;}
+  if(profile.deletedAt){location.href='deleted';return;}
+  if(profile.status!=='ACTIVE'){location.href='pending';return;}
+  const vendorId=profile.vendorId||user.uid;
+  try{
+    const snap=await get(query(ref(database,'products'),orderByChild('vendorId'),equalTo(vendorId)));
+    grid.replaceChildren();
+    if(!snap.exists()){const e=document.createElement('p');e.className='empty';e.textContent='You have not added any products yet.';grid.append(e);return;}
+    const items=Object.entries(snap.val()).map(([id,p])=>({id,...p})).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+    for(const p of items){
+      const art=document.createElement('article');art.className='form-panel';
+      const h3=document.createElement('h3');h3.textContent=p.name||'Product';
+      const price=document.createElement('p');price.className='product-price';price.textContent=(typeof p.price==='number'&&isFinite(p.price))?`₦${p.price.toLocaleString('en-NG',{maximumFractionDigits:2})}`:'Contact for price';
+      const row=document.createElement('div');row.className='button-row';
+      const edit=document.createElement('a');edit.className='button button--quiet';edit.href=`edit-product?id=${encodeURIComponent(p.id)}`;edit.textContent='Edit';
+      row.append(edit);art.append(h3,price,row);grid.append(art);
+    }
+  }catch(e){grid.innerHTML='<p class="empty">Could not load your products.</p>';}
+},{loginPath:'../login'});
+</script><script src="../js/theme.js"></script></body></html>

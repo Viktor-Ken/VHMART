@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="../css/main.css"><title>My products | VHMART</title></head>
+<body><main class="page"><a href="dashboard">Back</a><h1>My products</h1><div id="grid" class="product-grid"><p class="empty">Loading...</p></div></main>
+<script type="module">
+import { requireUser } from '../js/auth.js'; import { database } from '../js/firebase.js'; import { get, ref, query, orderByChild, equalTo } from 'https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js';
+const g=document.querySelector('#grid');
+requireUser(async(user,p)=>{
+  if(p.role!=='vendor'||p.status!=='ACTIVE'){location.href='../login';return;}
+  const vid=p.vendorId||user.uid; const s=await get(query(ref(database,'products'),orderByChild('vendorId'),equalTo(vid))); g.replaceChildren(); if(!s.exists()){const e=document.createElement('p');e.className='empty';e.textContent='No products.';g.append(e);return;} const items=Object.entries(s.val()).map(([id,x])=>({id,...x})).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)); items.forEach(it=>{const art=document.createElement('article');art.className='form-panel';const h=document.createElement('h3');h.textContent=it.name||'';const st=document.createElement('p');st.textContent='Status: '+(it.status||'');const pr=document.createElement('p');pr.className='product-price';pr.textContent=(typeof it.price==='number'&&isFinite(it.price))?`₦${it.price.toLocaleString('en-NG',{maximumFractionDigits:2})}`:'';const r=document.createElement('div');r.className='button-row';const e=document.createElement('a');e.className='button button--quiet';e.href=`edit-product?id=${encodeURIComponent(it.id)}`;e.textContent='Edit';r.append(e);art.append(h,st,pr,r);g.append(art);});
+},{loginPath:'../login'});
+</script></body></html>
