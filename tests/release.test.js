@@ -1551,3 +1551,67 @@ assert.ok(validate, 'the enquiry wildcard must carry a .validate rule');
     assert.match(editor, /return \{ wrap, input, id \};/,
       'field() must expose the unprefixed id for that comparison');
   });
+
+  test('the product contact panel uses the shared link validator', () => {
+    const product = read('product.html');
+
+    // The panel used to build its own hrefs inline, so a vendor could store an
+    // arbitrary URL in `facebook` and have it shown to customers under a
+    // "Facebook" label. contact-links.js pins each channel to its own host.
+    assert.match(product, /import \{ contactChannels \} from '\.\/js\/contact-links\.js'/,
+      'product.html must use the shared validator');
+    assert.match(product, /for \(const channel of contactChannels\(vendor\)\)/,
+      'contact links must come from contactChannels');
+
+    // None of the unvalidated inline construction may come back.
+    assert.doesNotMatch(product, /tel:\$\{vendor\./,
+      'phone links must be built by the validator, not inline');
+    assert.doesNotMatch(product, /mailto:\$\{vendor\./,
+      'email links must be built by the validator, not inline');
+    assert.doesNotMatch(product, /vendor\.facebook/,
+      'social links must not be read directly off the vendor record');
+
+    // The parts that already worked must survive the change.
+    assert.match(product, /addLink\('Send an enquiry'/,
+      'the enquiry link must remain');
+    assert.match(product, /agreeCheck\.checked/,
+      'contact links must stay gated behind the terms checkbox');
+    assert.match(product, /termsFrame\.src = 'terms-and-conditions\.html'/,
+      'the inline terms iframe must remain');
+    assert.match(product, /businessName/,
+      'the meta line must show the vendor business name');
+  });
+
+  test('Google-only accounts are routed to the Google password flow', () => {
+    const editor = read('js/profile-edit.js');
+
+    assert.match(editor, /export function isPasswordAccount/,
+      'provider detection must exist');
+    assert.match(editor, /providerId === 'password'/,
+      'a linked password provider means the account can change its password');
+    assert.match(editor, /providers\.length === 0/,
+      'no linked providers means a plain email/password account');
+    assert.match(editor, /usesGoogleOnly/,
+      'a Google-only account must be detectable');
+
+    // The dead-end form must not be shown to them.
+    assert.match(editor, /if \(signedIn && !isPasswordAccount\(signedIn\)\) \{\s*return renderGooglePasswordNotice/,
+      'renderPasswordForm must hand off instead of showing unusable fields');
+    assert.match(editor, /renderEmailForm[\s\S]*?if \(signedIn && !isPasswordAccount\(signedIn\)\)/,
+      'renderEmailForm must hand off as well');
+
+    // The link must leave the origin safely and point at a page that exists.
+    assert.match(editor, /href = GOOGLE_SECURITY_URL/,
+      'the hand-off must link to Google');
+    assert.match(editor, /target = '_blank'/,
+      'it must open in a new tab');
+    assert.match(editor, /rel = 'noopener noreferrer'/,
+      'it must not leak the referring page or grant window access');
+
+    // Verified live: /change-password 404s, /security is the real settings page.
+    const url = /const GOOGLE_SECURITY_URL = '([^']+)'/.exec(editor);
+    assert.ok(url, 'the Google URL must be a constant');
+    assert.equal(url[1], 'https://myaccount.google.com/security');
+    assert.doesNotMatch(url[1], /change-password/,
+      'that path does not exist');
+  });

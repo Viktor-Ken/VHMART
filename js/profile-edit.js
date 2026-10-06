@@ -203,7 +203,68 @@ export async function saveProfile(uid, values) {
 
 // Renders the password form. Standalone because both profiles need it and the
 // re-authentication requirement is easy to get subtly wrong in two places.
+const GOOGLE_SECURITY_URL = 'https://myaccount.google.com/security';
+
+// Google signs a user in without a password ever being set on Firebase. For that
+// account updatePassword has nothing to update, and re-authenticating with a
+// password can never succeed, so the current-password form would be a dead end.
+// Detect it and hand off to Google, who actually hold the credential.
+export function isPasswordAccount(user) {
+  if (!user) return false;
+  const providers = user.providerData || [];
+  if (providers.some((p) => p.providerId === 'password')) return true;
+  // No linked providers at all means a plain email/password account.
+  return providers.length === 0;
+}
+
+export function usesGoogleOnly(user) {
+  if (!user) return false;
+  const providers = user.providerData || [];
+  return providers.length > 0 && providers.every((p) => p.providerId === 'google.com');
+}
+
+// Replaces the current/new/confirm fields with a pointer at Google. Rendered in
+// place of the form so the page does not show controls that cannot work.
+export function renderGooglePasswordNotice(mount, user) {
+  const form = document.createElement('form');
+  form.className = 'form-panel password-form';
+  form.noValidate = true;
+
+  const heading = document.createElement('h2');
+  heading.textContent = 'Change password';
+  form.append(heading);
+
+  const explanation = document.createElement('p');
+  explanation.textContent = usesGoogleOnly(user)
+    ? 'You sign in to VHMART with Google, so your password is held by Google rather than by VHMART. Change it through your Google account, then use that same password next time you sign in.'
+    : 'This account signs in through another provider, so the password is managed there rather than by VHMART.';
+  form.append(explanation);
+
+  const button = document.createElement('a');
+  button.className = 'button button--primary';
+  button.href = GOOGLE_SECURITY_URL;
+  button.target = '_blank';
+  // noopener because the link leaves our origin; noreferrer so Google does not
+  // learn which page sent the user.
+  button.rel = 'noopener noreferrer';
+  button.textContent = 'Open Google password settings';
+  form.append(button);
+
+  const note = document.createElement('p');
+  note.className = 'empty';
+  note.textContent = 'Opens in a new tab on Google.';
+  form.append(note);
+
+  mount.append(form);
+  return form;
+}
+
 export function renderPasswordForm(mount) {
+  const signedIn = auth.currentUser;
+  if (signedIn && !isPasswordAccount(signedIn)) {
+    return renderGooglePasswordNotice(mount, signedIn);
+  }
+
   const form = document.createElement('form');
   form.className = 'form-panel password-form';
   form.noValidate = true;
@@ -284,6 +345,35 @@ export function renderPasswordForm(mount) {
 }
 
 export function renderEmailForm(mount) {
+  const signedIn = auth.currentUser;
+  // A Google-linked address belongs to Google. Firebase can convert an account
+  // to email/password, but doing that silently behind a "change email" button
+  // is surprising and breaks the sign-in the user chose, so hand off instead.
+  if (signedIn && !isPasswordAccount(signedIn)) {
+    const form = document.createElement('form');
+    form.className = 'form-panel email-form';
+    form.noValidate = true;
+
+    const heading = document.createElement('h2');
+    heading.textContent = 'Change email address';
+    form.append(heading);
+
+    const explanation = document.createElement('p');
+    explanation.textContent = 'You sign in to VHMART with Google, so your email address is managed in your Google account. Change it there.';
+    form.append(explanation);
+
+    const link = document.createElement('a');
+    link.className = 'button button--primary';
+    link.href = GOOGLE_SECURITY_URL;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.textContent = 'Open Google account settings';
+    form.append(link);
+
+    mount.append(form);
+    return form;
+  }
+
   const form = document.createElement('form');
   form.className = 'form-panel email-form';
   form.noValidate = true;
