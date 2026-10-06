@@ -1472,3 +1472,67 @@ assert.ok(validate, 'the enquiry wildcard must carry a .validate rule');
     assert.match(panel, /!picked \|\| !termsBox\.checked/,
       'a channel AND the terms are both required');
   });
+
+  test('customers and vendors can edit their profile and credentials', () => {
+    const editor = read('js/profile-edit.js');
+    const account = read('account.html');
+    const vendorProfile = read('vendor/profile.html');
+
+    // Both account surfaces must offer the editor, not just one.
+    assert.match(account, /profileMount/, 'the customer account page needs the editor');
+    assert.match(account, /buildProfileForm/, 'the customer page must build the editor');
+    assert.match(account, /renderPasswordForm/, 'the customer page must offer a password change');
+    assert.match(vendorProfile, /renderPasswordForm/, 'the vendor page must offer a password change');
+    assert.match(vendorProfile, /renderEmailForm/, 'the vendor page must offer an email change');
+
+    // The editor must be populated from the stored profile, otherwise it renders
+    // empty and invites a blind overwrite of the name.
+    assert.match(account, /editor\.fill\(/,
+      'the customer editor must be filled from the existing profile');
+
+    // Re-authentication before a password change. This is the load-bearing
+    // security property: without it, anyone at an unlocked browser session can
+    // take the account over, because Firebase would trust the existing token.
+    const passwordIndex = editor.indexOf('await reauthenticateWithCredential');
+    const changeIndex = editor.indexOf('await updatePassword');
+    assert.ok(passwordIndex > 0 && changeIndex > 0, 'both calls must exist');
+    assert.ok(passwordIndex < changeIndex,
+      're-authentication must happen before the password is changed');
+
+    // Confirmation of the current password must be requested at all.
+    assert.match(editor, /EmailAuthProvider\.credential/,
+      'the current password must be collected and used to re-authenticate');
+
+    // Changing the email is an Auth operation that verifies the new address, and
+    // the profile copy is read-only so the two cannot drift apart.
+    assert.match(editor, /verifyBeforeUpdateEmail/,
+      'a new email address must be verified before it takes effect');
+    assert.match(editor, /readOnly = true/,
+      'the sign-in email must be read-only in the profile form');
+
+    // The sign-in email is pinned by the rules, so it must not be part of the
+    // database payload or the write is rejected.
+    const save = /export async function saveProfile\([\s\S]*?\n}/.exec(editor);
+    assert.ok(save, 'saveProfile must exist');
+    assert.doesNotMatch(save[0], /payload\.email\s*=/,
+      'the profile save must not send the email; the rules pin it');
+
+    // Validation before anything is written, and never a value that becomes a
+    // link target later.
+    const validate = /export function validateProfile\([\s\S]*?\n}/.exec(editor);
+    assert.ok(validate, 'validateProfile must exist');
+    assert.match(validate[0], /parsed\.protocol !== 'http:' && parsed\.protocol !== 'https:'/,
+      'a link must be http or https only');
+    assert.match(validate[0], /digits\.length < 7/,
+      'a phone number must be length checked');
+
+    // Every social channel a vendor profile collects must be editable here, or a
+    // vendor could set one at signup and never change it.
+    for (const channel of ['facebook', 'instagram', 'twitter', 'tiktok', 'youtube', 'linkedin', 'website']) {
+      assert.match(editor, new RegExp(`id: '${channel}'`),
+        `${channel} must be editable from the profile`);
+    }
+    for (const channel of ['phone', 'whatsapp']) {
+      assert.match(editor, new RegExp(`id: '${channel}'`), `${channel} must be editable`);
+    }
+  });

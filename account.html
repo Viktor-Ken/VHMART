@@ -27,6 +27,8 @@
 <body><main class="page">
 <nav class="nav"><a class="brand" href="">VHMART</a><a href="marketplace">Marketplace</a><button id="logout" type="button">Sign out</button></nav>
 <h1>My account</h1>
+<div id="profileMount"></div>
+<div id="securityMount"></div>
 <section class="form-panel" id="details"><p class="empty">Loading your account...</p></section>
 <section class="form-panel">
   <h2>Delete this account</h2>
@@ -45,6 +47,16 @@ const details = document.querySelector('#details');
 const deleteMessage = document.querySelector('#deleteMessage');
 
 requireUser(async (user, profile) => {
+  // Profile and security editing. The display name and contact details live in
+  // the database; the password and email live in Firebase Auth and are handled
+  // by the same module because both need re-authentication.
+  const { buildProfileForm, renderPasswordForm, renderEmailForm } = await import('./js/profile-edit.js');
+  const profileHost = document.querySelector('#profileMount');
+  const editor = buildProfileForm({ heading: 'Your details', intro: 'Keep these current so vendors can reach you about an enquiry.' });
+  profileHost.append(editor.form);
+  const securityHost = document.querySelector('#securityMount');
+  renderEmailForm(securityHost);
+  renderPasswordForm(securityHost);
   if (profile.deletedAt || profile.active === false) { location.href = 'account-deleted'; return; }
   details.replaceChildren();
   const heading = document.createElement('h2');
@@ -57,6 +69,9 @@ requireUser(async (user, profile) => {
   // so a two-way check here used to label every administrator as a Customer.
   const roleLabel = { admin: 'Administrator', vendor: 'Vendor', customer: 'Customer' }[profile.role] || 'Customer';
   role.textContent = 'Account type: ' + roleLabel;
+  // Populate the editor with what is already stored, so the form shows the
+  // current values rather than appearing empty and inviting a blind overwrite.
+  try { editor.fill(userSnapshot.val() || {}); } catch (error) { console.error(error); }
   if (profile.role === 'admin') {
     role.textContent += ' (full access to every account on the site)';
   }

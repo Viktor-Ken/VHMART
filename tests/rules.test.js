@@ -649,3 +649,47 @@ test('a contact enquiry must name a real channel and record the terms acceptance
       'and the rules must still apply to a generated key'
     );
   });
+
+  test('a signed-in user may edit their own contact details but not their role', async () => {
+    await fresh();
+    const customer = asUser('customer1', 'casey@example.com');
+
+    // Contact and social details are the user's own to change.
+    await assertSucceeds(
+      customer.ref('users/customer1').update({
+        name: 'Casey Nwosu',
+        phone: '08031234567',
+        whatsapp: '+2348031234567',
+        facebook: 'https://facebook.com/casey',
+        instagram: 'https://instagram.com/casey'
+      }),
+      'a customer must be able to update their own contact and social details'
+    );
+
+    // And it must be a real update, not a no-op the rules happen to allow.
+    const after = await customer.ref('users/customer1').once('value');
+    assert.equal(after.val().phone, '08031234567');
+    assert.equal(after.val().instagram, 'https://instagram.com/casey');
+
+    // Privilege escalation must stay impossible: role is pinned by the rule.
+    await assertFails(
+      customer.ref('users/customer1').update({ role: 'admin' }),
+      'a customer must not be able to promote themselves by editing their profile'
+    );
+    // Nor can they re-enable themselves after being suspended.
+    await seed({ 'users/suspended1': { name: 'Sam', email: 'sam@example.com', role: 'customer', active: false } });
+    await assertFails(
+      asUser('suspended1', 'sam@example.com').ref('users/suspended1').update({ active: true }),
+      'a suspended user must not be able to reactivate themselves'
+    );
+    // And the email on the account is owned by Auth, not the profile.
+    await assertFails(
+      customer.ref('users/customer1').update({ email: 'attacker@example.com' }),
+      'the profile email must stay immutable; changing it is an Auth operation'
+    );
+    // Someone else must not be able to edit it.
+    await assertFails(
+      asUser('customer2', 'mallory@example.com').ref('users/customer1').update({ phone: '08000000000' }),
+      'one customer must not be able to edit another profile'
+    );
+  });
