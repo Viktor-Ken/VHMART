@@ -33,7 +33,7 @@
   </url>
   <url>
     <loc>https://vhmart.online/marketplace?category=wellness</loc>
-    <lastmod>2026-10-05</lastmod>
+    <lastmod>2026-09-29</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
@@ -42,12 +42,6 @@
     <lastmod>2026-09-09</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://vhmart.online/marketplace?category=general</loc>
-    <lastmod>2026-09-21</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>0.5</priority>
   </url>
   <url>
     <loc>https://vhmart.online/product/-P2gIjwwMtoqMSjG5Jp5</loc>
@@ -170,12 +164,6 @@
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://vhmart.online/product/-P23RJArTZK0UvzxrXkI</loc>
-    <lastmod>2026-10-05</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
     <loc>https://vhmart.online/product/-P15sfuneJj8-U-LGb7M</loc>
     <lastmod>2026-09-09</lastmod>
     <changefreq>weekly</changefreq>
@@ -202,12 +190,6 @@
   <url>
     <loc>https://vhmart.online/product/-P14q1XySCgZdVp4Vh1T</loc>
     <lastmod>2026-09-09</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://vhmart.online/product/-P23Qyu-AYXHgA_Hnb9Q</loc>
-    <lastmod>2026-09-21</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>

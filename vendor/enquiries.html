@@ -45,6 +45,9 @@ requireUser(async (user, profile) => {
     }
     // Kept in step with the customer-facing list in js/contact-links.js, and reused
 // by the rules which constrain channel to exactly these keys.
+// How the customer said to be reached. Kept separate from CHANNEL_LABELS,
+// which are the social destinations the customer may be handed off to.
+const REPLY_LABELS = { email: 'email', phone: 'phone', whatsapp: 'WhatsApp' };
 const CHANNEL_LABELS = { whatsapp: 'WhatsApp', phone: 'Phone', email: 'Email', facebook: 'Facebook', instagram: 'Instagram', twitter: 'X (Twitter)', tiktok: 'TikTok', youtube: 'YouTube', linkedin: 'LinkedIn', website: 'Website' };
   const entries = snapshot.exists() ? Object.entries(snapshot.val()).map(([id, item]) => ({ id, ...item })).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)) : [];
     root.replaceChildren();
@@ -59,6 +62,28 @@ const CHANNEL_LABELS = { whatsapp: 'WhatsApp', phone: 'Phone', email: 'Email', f
       // channel field existed have none.
       if (item.channel) { const via = document.createElement('p'); via.className = 'enquiry-channel'; via.textContent = `Preferred contact: ${CHANNEL_LABELS[item.channel] || item.channel}`; card.append(via); }
       const message = document.createElement('p'); message.textContent = item.message || 'No message supplied.';
+      // The customer must say how the vendor can reach them, so the inbox has to
+      // show it. Without this the vendor can read the enquiry but has no way to
+      // answer it. replyMethod/replyValue are the fields the enquiry form writes;
+      // older enquiries have none and fall back to the account email.
+      const reply = item.replyValue
+        ? `Reply via ${REPLY_LABELS[item.replyMethod] || item.replyMethod || 'contact'}: ${item.replyValue}`
+        : (item.customerEmail ? `Reply via email: ${item.customerEmail}` : '');
+      if (reply) {
+        const contact = document.createElement('p');
+        contact.className = 'enquiry-reply';
+        contact.textContent = reply;
+        card.append(contact);
+        // A mailto lets the vendor answer from the inbox without copying the
+        // address across. Validated by the rules as a plain address.
+        if (item.customerEmail) {
+          const answer = document.createElement('a');
+          answer.className = 'button button--quiet';
+          answer.href = `mailto:${item.customerEmail}?subject=${encodeURIComponent('Re: your VHMART enquiry')}`;
+          answer.textContent = 'Reply by email';
+          card.append(answer);
+        }
+      }
       const status = document.createElement('p'); status.textContent = `Status: ${item.status || 'NEW'}`;
       const button = document.createElement('button'); button.className = 'button button--quiet'; button.type = 'button'; button.textContent = item.status === 'RESPONDED' ? 'Responded' : 'Mark responded'; button.disabled = item.status === 'RESPONDED';
       button.addEventListener('click', async () => { button.disabled = true; try { const response={ status: 'RESPONDED', updatedAt: Date.now() }; await update(ref(database, `enquiries/${item.id}`), response); await update(ref(database, `vendor_enquiries/${user.uid}/${item.id}`), response); status.textContent = 'Status: RESPONDED'; button.textContent = 'Responded'; } catch (error) { console.error('Enquiry update failed:', error); button.disabled = false; } });

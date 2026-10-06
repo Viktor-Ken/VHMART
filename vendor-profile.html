@@ -137,26 +137,39 @@ async function render(id) {
 }
 
 // Only PUBLISHED products belonging to an active vendor are readable, so the
-// query cannot surface anything that has been suspended or deleted.
+// query cannot surface anything suspended or deleted.
+//
+// The read must be issued in the one shape the rules grant to an anonymous
+// visitor: orderByChild('status') equalTo 'PUBLISHED'. Querying by vendorId
+// instead is denied for everybody, because the rules have no clause for it - and
+// the failure looks like an empty vendor rather than a permission error. The
+// vendor filter is therefore applied here rather than in the query.
 async function productSection(vendorId) {
   const section = el('section');
   section.append(el('h2', null, 'Products'));
 
   let products = [];
+  let denied = false;
   try {
-    const snapshot = await get(query(ref(database, 'products'), orderByChild('vendorId'), equalTo(vendorId)));
+    const snapshot = await get(query(ref(database, 'products'), orderByChild('status'), equalTo('PUBLISHED')));
     if (snapshot.exists()) {
       products = Object.entries(snapshot.val())
         .map(([id, product]) => ({ id, ...product }))
-        .filter((product) => product.status === 'PUBLISHED' && !product.deletedAt)
+        .filter((product) => product.vendorId === vendorId && !product.deletedAt)
         .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
     }
   } catch (error) {
+    // A denial here must not be reported as "no products": that reads as the
+    // vendor having an empty storefront, which sends a customer away for no
+    // reason.
+    denied = true;
     console.error(error);
   }
 
   if (!products.length) {
-    section.append(el('p', 'empty', 'This vendor has no published products right now.'));
+    section.append(el('p', 'empty', denied
+      ? 'We could not load this vendor\\u2019s products just now. Please try again shortly.'
+      : 'This vendor has no published products right now.'));
     return section;
   }
 

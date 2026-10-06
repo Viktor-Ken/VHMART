@@ -49,6 +49,9 @@ export function renderContactPanel(mount, context) {
   const terms = el('label', 'contact-panel__terms');
   const termsBox = document.createElement('input');
   termsBox.type = 'checkbox';
+  // Labelled and identifiable: without an id there is no programmatic handle for
+  // a test, and a screen reader has nothing to announce beyond the label text.
+  termsBox.id = 'contact-terms';
   const termsText = document.createElement('span');
   const termsLink = document.createElement('a');
   termsLink.href = termsUrl || DEFAULT_TERMS_URL;

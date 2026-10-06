@@ -1431,3 +1431,44 @@ assert.ok(validate, 'the enquiry wildcard must carry a .validate rule');
     assert.match(clean, /function stripExtension/, 'the strip helper must exist');
     assert.match(clean, /=== 'index'/, 'index.html must become the site root');
   });
+
+  test('a vendor can read an enquiry and knows how to reply', () => {
+    const profile = read('vendor-profile.html');
+    const inbox = read('vendor/enquiries.html');
+    const panel = read('js/contact-vendor.js');
+
+    // The products read must use the one query shape the rules grant to an
+    // anonymous visitor. Querying orderByChild('vendorId') is denied for
+    // everybody, and the failure looks like an empty vendor rather than a
+    // permission error.
+    assert.match(profile, /orderByChild\('status'\), equalTo\('PUBLISHED'\)/,
+      'the vendor product list must use the publicly permitted query');
+    assert.doesNotMatch(profile, /orderByChild\('vendorId'\)/,
+      'a query by vendorId is not permitted by the rules and is denied for everyone');
+    assert.match(profile, /product\.vendorId === vendorId/,
+      'the vendor filter must be applied in the page, not in the query');
+
+    // A denial must not be reported as an empty storefront.
+    assert.match(profile, /could not load|denied/,
+      'a failed read must be reported as such, not as no products');
+
+    // The vendor must see how the customer wants to be reached, or the enquiry
+    // is unreadable in practice.
+    assert.match(inbox, /item\.replyValue/,
+      'the inbox must show the reply details the customer supplied');
+    assert.match(inbox, /item\.replyMethod/,
+      'the inbox must show which channel the customer chose');
+    assert.match(inbox, /mailto:/,
+      'the vendor must be able to reply without copying the address across');
+    assert.match(inbox, /item\.customerEmail/,
+      'the inbox must fall back to the account email for older enquiries');
+
+    // The handoff must open the channel the customer selected, and only after
+    // both gates are satisfied.
+    assert.match(panel, /termsBox\.id = 'contact-terms'/,
+      'the terms checkbox needs an id so it can be labelled and targeted');
+    assert.match(panel, /window\.open\(outgoing/,
+      'the selected channel must be opened for the customer');
+    assert.match(panel, /!picked \|\| !termsBox\.checked/,
+      'a channel AND the terms are both required');
+  });
