@@ -1,11 +1,24 @@
-<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="../css/main.css"><title>Add product | VHMART</title></head>
-<body><main class="page"><a href="dashboard">Back to dashboard</a><h1>Add product</h1><section class="form-panel"><form id="form"><label for="name">Product name<input id="name" required maxlength="120"></label><label for="price">Price (NGN)<input id="price" type="number" min="0" step="0.01"></label><label for="image">Image URL<input id="image" type="url" placeholder="https://..."></label><label for="categoryId">Category<select id="categoryId"><option value="hospital-lab-equipment">Hospital & lab equipment</option><option value="wellness">Wellness</option><option value="fitness">Fitness</option><option value="men-shoes">Men shoes</option><option value="women-shoes">Women shoes</option></select></label><label for="availability">Availability<select id="availability"><option value="In stock">In stock</option><option value="Out of stock">Out of stock</option><option value="Contact vendor">Contact vendor</option></select></label><label for="description">Description<textarea id="description" required maxlength="3000"></textarea></label><button class="button button--primary">Publish product</button><p id="msg" role="status"></p></form></section></main>
-<script type="module">
-import { requireUser } from '../js/auth.js'; import { database, auth } from '../js/firebase.js'; import { push, ref, serverTimestamp, update } from 'https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js';
-const f=document.querySelector('#form'),m=document.querySelector('#msg');
-requireUser(async(user,p)=>{
-  if(p.role!=='vendor'||p.deletedAt||p.status!=='ACTIVE'){location.href='../login';return;}
-  const vid=p.vendorId||user.uid; f.addEventListener('submit',async e=>{e.preventDefault();const b=f.querySelector('button');b.disabled=true;try{const pr=push(ref(database,'products'));const now=serverTimestamp();const priceVal=f.price.value.trim()===''?null:Number(f.price.value);await update(pr,{id:pr.key,vendorId:vid,name:f.name.value.trim(),price:priceVal,image:f.image.value.trim(),categoryId:f.categoryId.value,availability:f.availability.value,description:f.description.value.trim(),status:'PUBLISHED',createdAt:now,updatedAt:now,createdBy:user.uid});m.textContent='Product published.';f.reset();}catch(err){m.textContent='Failed to publish.';}finally{b.disabled=false;}});
-},{loginPath:'../login'});
-</script></body></html>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="../css/main.css">
+<!-- seo:start -->
+<title>Add a product | VisuaHealth Market</title>
+<meta name="description" content="List a new product on VHMART.">
+<link rel="canonical" href="https://vhmart.online/vendor/add-product">
+<meta name="robots" content="noindex,nofollow">
+<link rel="preload" href="/fonts/DMSans-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/SpaceGrotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/Visuamall/logo.webp" as="image" type="image/webp">
+<link rel="preload" href="/Visuamall/general/bg%202.jpg" as="image">
+<link rel="preload" href="/Visuamall/general/hero.webp" as="image" type="image/webp">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="VisuaHealth Market">
+<meta property="og:title" content="Add a product | VisuaHealth Market">
+<meta property="og:description" content="List a new product on VHMART.">
+<meta property="og:url" content="https://vhmart.online/vendor/add-product">
+<meta property="og:image" content="https://vhmart.online/Visuamall/general/home-removebg-preview.webp">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Add a product | VisuaHealth Market">
+<meta name="twitter:description" content="List a new product on VHMART.">
+<meta name="twitter:image" content="https://vhmart.online/Visuamall/general/home-removebg-preview.webp">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"VisuaHealth Market","url":"https://vhmart.online/","logo":"https://vhmart.online/Visuamall/general/home-removebg-preview.webp"}</script>
+<!-- seo:end -->
+</head><body><main class="page"><a href="products">Back to products</a><section class="form-panel"><h1>Add product</h1><form id="productForm"><label for="name">Product name<input id="name" required maxlength="120"></label><label for="price">Price (₦)<input id="price" type="number" min="0" step="0.01" inputmode="decimal" placeholder="e.g. 15000"></label><label for="description">Description<textarea id="description" required minlength="10" maxlength="3000"></textarea></label><label for="categoryId">Category<select id="categoryId" required><option value="general">General</option><option value="books">Books</option><option value="courses">Courses</option><option value="hospital-wears">Hospital wears</option><option value="wellness">Wellness</option><option value="hospital-lab-equipment">Hospital & lab equipment</option><option value="health-travel">Health travel</option><option value="fitness">Fitness</option><option value="men-shoes">Men shoes</option><option value="women-shoes">Women shoes</option></select></label><label for="availability">Availability<select id="availability"><option value="AVAILABLE">Available</option><option value="CONTACT_VENDOR">Contact vendor</option><option value="UNAVAILABLE">Unavailable</option></select></label><label for="image">Product image<input id="image" type="file" accept="image/jpeg,image/png,image/webp" required></label><img id="preview" alt="Selected product preview" hidden><button class="button button--primary" type="submit">Publish product</button><p id="message" role="status"></p></form></section></main><script type="module" src="../js/vendor-product-form.js"></script><script src="../js/brand-avatar.js"></script><script src="../js/theme.js"></script><script src="../js/track.js"></script></body></html>

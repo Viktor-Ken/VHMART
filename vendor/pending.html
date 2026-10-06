@@ -1,3 +1,65 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="../css/main.css"><title>Account pending | VHMART</title></head>
-<body><main class="page"><h1>Your vendor account is pending approval</h1><p>Your application has been received. We'll contact you shortly.</p><a href="../">Go home</a></main></body></html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="../css/main.css">
+<!-- seo:start -->
+<title>Application status | VisuaHealth Market</title>
+<meta name="description" content="The status of your VHMART vendor application.">
+<link rel="canonical" href="https://vhmart.online/vendor/pending">
+<meta name="robots" content="noindex,nofollow">
+<link rel="preload" href="/fonts/DMSans-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/SpaceGrotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/Visuamall/logo.webp" as="image" type="image/webp">
+<link rel="preload" href="/Visuamall/general/bg%202.jpg" as="image">
+<link rel="preload" href="/Visuamall/general/hero.webp" as="image" type="image/webp">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="VisuaHealth Market">
+<meta property="og:title" content="Application status | VisuaHealth Market">
+<meta property="og:description" content="The status of your VHMART vendor application.">
+<meta property="og:url" content="https://vhmart.online/vendor/pending">
+<meta property="og:image" content="https://vhmart.online/Visuamall/general/home-removebg-preview.webp">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Application status | VisuaHealth Market">
+<meta name="twitter:description" content="The status of your VHMART vendor application.">
+<meta name="twitter:image" content="https://vhmart.online/Visuamall/general/home-removebg-preview.webp">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"VisuaHealth Market","url":"https://vhmart.online/","logo":"https://vhmart.online/Visuamall/general/home-removebg-preview.webp"}</script>
+<!-- seo:end -->
+</head>
+<body><main class="page">
+<nav class="nav"><a class="brand" href="">VHMART</a><button id="logout" type="button">Sign out</button></nav>
+<section class="form-panel" id="statusPanel"><h1>Vendor application</h1><p class="empty">Loading your application status...</p></section>
+</main>
+<script type="module">
+import { requireUser, logout } from '../js/auth.js';
+logout(document.querySelector('#logout'));
+const panel = document.querySelector('#statusPanel');
+
+function render(title, body, tone) {
+  panel.replaceChildren();
+  const heading = document.createElement('h1');
+  heading.textContent = title;
+  const copy = document.createElement('p');
+  copy.textContent = body;
+  panel.append(heading, copy);
+  if (tone) copy.style.color = tone;
+}
+
+requireUser(async (user, profile) => {
+  if (profile.role !== 'vendor') { location.href = ''; return; }
+  if (profile.deletedAt) { location.href = 'deleted'; return; }
+  if (profile.status === 'ACTIVE') { location.href = 'dashboard'; return; }
+  if (profile.status === 'PENDING') {
+    render('Application received', 'Your vendor application is with a VHMART admin for review. Every new vendor is approved before the storefront and dashboard open up. This usually takes a day.', '#176b55');
+  } else if (profile.status === 'DECLINED') {
+    const reason = profile.declinedReason ? ' Reason given: ' + profile.declinedReason + '.' : '';
+    render('Application not approved', 'We could not approve this vendor account right now.' + reason + ' You are welcome to apply again after updating your details.', '#e76f51');
+  } else {
+    render('Account suspended', 'This vendor account is currently suspended. Contact VHMART support if you believe this is a mistake.', '#e76f51');
+  }
+  const back = document.createElement('p');
+  const link = document.createElement('a');
+  link.href = '';
+  link.textContent = 'Back to VHMART';
+  back.append(link);
+  panel.append(back);
+}, '../login.html', () => render('Could not load your application', 'Please refresh and try again.', '#e76f51'));
+</script><script src="../js/brand-avatar.js"></script><script src="../js/theme.js"></script><script src="../js/track.js"></script></body></html>

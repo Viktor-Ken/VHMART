@@ -1,30 +1,148 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="../css/main.css"><title>Vendor Dashboard | VHMART</title></head>
-<body><header class="site-header"><nav class="nav" aria-label="Main navigation"><a class="brand" href="../">VHMART</a><div class="nav-links"><a href="../marketplace">Marketplace</a><button id="logout" type="button">Sign out</button></div></nav></header><main class="page"><h1>Vendor dashboard</h1><section class="form-panel"><div class="button-row"><a class="button button--primary" href="add-product">Add product</a><a class="button button--quiet" href="profile">Edit profile</a><a class="button button--quiet" href="products">Manage products</a><a class="button button--quiet" href="enquiries">Enquiries</a></div></section><section><h2>My products</h2><div id="products" class="product-grid"><p class="empty">Loading your products...</p></div></section></main>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="../css/main.css">
+<!-- seo:start -->
+<title>Vendor dashboard | VisuaHealth Market</title>
+<meta name="description" content="Manage your VHMART vendor listing, products and enquiries.">
+<link rel="canonical" href="https://vhmart.online/vendor/dashboard">
+<meta name="robots" content="noindex,nofollow">
+<link rel="preload" href="/fonts/DMSans-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/SpaceGrotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/Visuamall/logo.webp" as="image" type="image/webp">
+<link rel="preload" href="/Visuamall/general/bg%202.jpg" as="image">
+<link rel="preload" href="/Visuamall/general/hero.webp" as="image" type="image/webp">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="VisuaHealth Market">
+<meta property="og:title" content="Vendor dashboard | VisuaHealth Market">
+<meta property="og:description" content="Manage your VHMART vendor listing, products and enquiries.">
+<meta property="og:url" content="https://vhmart.online/vendor/dashboard">
+<meta property="og:image" content="https://vhmart.online/Visuamall/general/home-removebg-preview.webp">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Vendor dashboard | VisuaHealth Market">
+<meta name="twitter:description" content="Manage your VHMART vendor listing, products and enquiries.">
+<meta name="twitter:image" content="https://vhmart.online/Visuamall/general/home-removebg-preview.webp">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"VisuaHealth Market","url":"https://vhmart.online/","logo":"https://vhmart.online/Visuamall/general/home-removebg-preview.webp"}</script>
+<!-- seo:end -->
+</head>
+<body><main class="page">
+<nav class="nav"><a class="brand" href="">VHMART</a><a href="products">Products</a><a href="enquiries">Enquiries</a><a href="profile">Profile</a><button id="logout" type="button">Sign out</button></nav>
+<h1>Vendor dashboard</h1>
+<div id="stats" class="category-grid"><p class="empty">Loading dashboard...</p></div>
+<section class="form-panel" aria-labelledby="dashboard-products-title"><h2 id="dashboard-products-title">My products</h2><div id="dashboardProducts"><p class="empty">Loading products...</p></div><p><a href="products">View all products</a></p></section>
+<section class="form-panel" aria-labelledby="dashboard-enquiries-title"><h2 id="dashboard-enquiries-title">Recent enquiries</h2><div id="dashboardEnquiries"><p class="empty">Loading enquiries...</p></div><p><a href="enquiries">View all enquiries</a></p></section>
+<p id="message" role="status"></p>
+</main>
 <script type="module">
 import { requireUser, logout } from '../js/auth.js';
+import { ownedProducts, formatPrice } from '../js/products.js';
 import { database } from '../js/firebase.js';
 import { get, ref, query, orderByChild, equalTo } from 'https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js';
-const logoutBtn=document.querySelector('#logout');logoutBtn.addEventListener('click',logout);
-const grid=document.querySelector('#products');
-requireUser(async(user,profile)=>{
-  if(profile.role!=='vendor'){location.href='../login';return;}
-  if(profile.deletedAt){location.href='deleted';return;}
-  if(profile.status!=='ACTIVE'){location.href='pending';return;}
-  const vendorId=profile.vendorId||user.uid;
-  try{
-    const snap=await get(query(ref(database,'products'),orderByChild('vendorId'),equalTo(vendorId)));
-    grid.replaceChildren();
-    if(!snap.exists()){const e=document.createElement('p');e.className='empty';e.textContent='You have not added any products yet.';grid.append(e);return;}
-    const items=Object.entries(snap.val()).map(([id,p])=>({id,...p})).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
-    for(const p of items){
-      const art=document.createElement('article');art.className='form-panel';
-      const h3=document.createElement('h3');h3.textContent=p.name||'Product';
-      const price=document.createElement('p');price.className='product-price';price.textContent=(typeof p.price==='number'&&isFinite(p.price))?`₦${p.price.toLocaleString('en-NG',{maximumFractionDigits:2})}`:'Contact for price';
-      const row=document.createElement('div');row.className='button-row';
-      const edit=document.createElement('a');edit.className='button button--quiet';edit.href=`edit-product?id=${encodeURIComponent(p.id)}`;edit.textContent='Edit';
-      row.append(edit);art.append(h3,price,row);grid.append(art);
+
+logout(document.querySelector('#logout'));
+
+const statsRoot = document.querySelector('#stats');
+const productsRoot = document.querySelector('#dashboardProducts');
+const enquiriesRoot = document.querySelector('#dashboardEnquiries');
+const message = document.querySelector('#message');
+
+function showEmpty(root, text) {
+  root.replaceChildren();
+  const empty = document.createElement('p');
+  empty.className = 'empty';
+  empty.textContent = text;
+  root.append(empty);
+}
+
+function showError(root, text) {
+  root.replaceChildren();
+  const error = document.createElement('p');
+  error.className = 'error';
+  error.textContent = text;
+  root.append(error);
+}
+
+function renderStats(products, enquiries) {
+  const values = [
+    ['Total products', products.length],
+    ['Live products', products.filter((p) => p.status === 'PUBLISHED').length],
+    ['Archived products', products.filter((p) => p.status === 'ARCHIVED').length],
+    ['New enquiries', enquiries.filter((e) => e.status === 'NEW').length]
+  ];
+  statsRoot.replaceChildren();
+  values.forEach(([label, value]) => {
+    const card = document.createElement('article');
+    card.className = 'category-card';
+    card.style.backgroundImage = 'linear-gradient(135deg,#176b55,#e76f51)';
+    const title = document.createElement('h3');
+    title.textContent = `${label}: ${value}`;
+    card.append(title);
+    statsRoot.append(card);
+  });
+}
+
+function renderProducts(products) {
+  if (!products.length) { showEmpty(productsRoot, 'No products yet. Add your first product to get started.'); return; }
+  productsRoot.replaceChildren();
+  products.slice(0, 5).forEach((product) => {
+    const item = document.createElement('article');
+    item.className = 'form-panel';
+    const title = document.createElement('h3');
+    title.textContent = product.name || 'Unnamed product';
+    const price = document.createElement('p');
+    price.className = 'product-price';
+    price.textContent = formatPrice(product.price) || 'No price set';
+    const status = document.createElement('p');
+    status.textContent = `Status: ${product.status === 'PUBLISHED' ? 'LIVE' : (product.status || 'UNKNOWN')}`;
+    const edit = document.createElement('a');
+    edit.className = 'button button--quiet';
+    edit.href = `edit-product?id=${encodeURIComponent(product.id)}`;
+    edit.textContent = 'Edit product';
+    item.append(title, price, status, edit);
+    productsRoot.append(item);
+  });
+}
+
+function renderEnquiries(enquiries) {
+  if (!enquiries.length) { showEmpty(enquiriesRoot, 'No enquiries yet. Customer enquiries will appear here.'); return; }
+  enquiriesRoot.replaceChildren();
+  enquiries.slice(0, 5).forEach((item) => {
+    const card = document.createElement('article');
+    card.className = 'form-panel';
+    const title = document.createElement('h3');
+    title.textContent = item.customerName || 'Customer enquiry';
+    const product = document.createElement('p');
+    product.textContent = `Product: ${item.productName || item.productId || 'Not specified'}`;
+    const text = document.createElement('p');
+    text.textContent = item.message || 'No message supplied.';
+    const status = document.createElement('p');
+    status.textContent = `Status: ${item.status || 'NEW'}`;
+    card.append(title, product, text, status);
+    enquiriesRoot.append(card);
+  });
+}
+
+requireUser(async (user, profile) => {
+  if (profile.role !== 'vendor') { location.href = ''; return; }
+  try {
+    if (profile.deletedAt) { location.href = 'deleted'; return; }
+    if (profile.status !== 'ACTIVE') { location.href = 'pending'; return; }
+    const products = await ownedProducts(user.uid);
+    let enquirySnapshot = await get(ref(database, `vendor_enquiries/${user.uid}`));
+    if (!enquirySnapshot.exists()) {
+      enquirySnapshot = await get(query(ref(database, 'enquiries'), orderByChild('vendorId'), equalTo(user.uid)));
     }
-  }catch(e){grid.innerHTML='<p class="empty">Could not load your products.</p>';}
-},{loginPath:'../login'});
-</script><script src="../js/theme.js"></script></body></html>
+    const enquiries = enquirySnapshot.exists()
+      ? Object.entries(enquirySnapshot.val()).map(([id, item]) => ({ id, ...item })).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+      : [];
+    renderStats(products, enquiries);
+    renderProducts(products);
+    renderEnquiries(enquiries);
+  } catch (error) {
+    console.error('Vendor dashboard load failed:', error);
+    statsRoot.innerHTML = '<p class="error">We could not load your dashboard. Please refresh and try again.</p>';
+    showError(productsRoot, 'We could not load your products right now.');
+    showError(enquiriesRoot, 'We could not load your enquiries right now.');
+    message.textContent = 'Dashboard data could not be loaded.';
+  }
+}, '../login.html', (error) => { console.error('Vendor authentication failed:', error); statsRoot.innerHTML = '<p class="error">We could not load your account. Please refresh and try again.</p>'; showError(productsRoot, 'Your products could not be loaded.'); showError(enquiriesRoot, 'Your enquiries could not be loaded.'); message.textContent = 'Your account could not be loaded.'; });
+</script><script src="../js/brand-avatar.js"></script><script src="../js/theme.js"></script><script src="../js/track.js"></script></body></html>

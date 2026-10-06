@@ -1,14 +1,122 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="css/main.css"><title>Profile | VHMART</title></head>
-<body><header class="site-header"><nav class="nav" aria-label="Main navigation"><a class="brand" href="">VHMART</a><div class="nav-links"><a href="marketplace">Marketplace</a><button id="logout" type="button">Sign out</button></div></nav></header><main class="page"><h1>Your profile</h1><section class="form-panel"><p>Customers can edit their contact details and password here. Email cannot be changed.</p><form id="profileForm"><label for="name">Full name<input id="name" required></label><label for="countryCode">Country code<select id="countryCode" aria-label="Country dialling code"><option value="+234" selected>Nigeria +234</option><option value="+1">US & Canada +1</option><option value="+44">United Kingdom +44</option><option value="+233">Ghana +233</option><option value="+254">Kenya +254</option><option value="+27">South Africa +27</option><option value="+30">Greece +30</option><option value="+353">Ireland +353</option><option value="+91">India +91</option><option value="+55">Brazil +55</option><option value="+7">Russia +7</option></select></label><label for="phone">Phone<input id="phone" type="tel"></label><label for="waCountryCode">WhatsApp country code<select id="waCountryCode" aria-label="WhatsApp dialling code"><option value="+234" selected>Nigeria +234</option><option value="+1">US & Canada +1</option><option value="+44">United Kingdom +44</option><option value="+233">Ghana +233</option><option value="+254">Kenya +254</option><option value="+27">South Africa +27</option><option value="+30">Greece +30</option><option value="+353">Ireland +353</option><option value="+91">India +91</option><option value="+55">Brazil +55</option><option value="+7">Russia +7</option></select></label><label for="whatsapp">WhatsApp<input id="whatsapp" type="tel"></label><label for="email">Email<input id="email" type="email" readonly></label><label for="facebook">Facebook<input id="facebook" type="url"></label><label for="instagram">Instagram<input id="instagram" type="url"></label><label for="twitter">X (Twitter)<input id="twitter" type="url"></label><label for="tiktok">TikTok<input id="tiktok" type="url"></label><label for="youtube">YouTube<input id="youtube" type="url"></label><label for="linkedin">LinkedIn<input id="linkedin" type="url"></label><label for="website">Website<input id="website" type="url"></label><button class="button button--primary">Save profile</button><p id="msg" role="status"></p></form></section><div id="security"></div></main>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="css/main.css">
+<!-- seo:start -->
+<title>My account | VisuaHealth Market</title>
+<meta name="description" content="Manage your VHMART profile, products and enquiries.">
+<link rel="canonical" href="https://vhmart.online/account">
+<meta name="robots" content="noindex,nofollow">
+<link rel="preload" href="/fonts/DMSans-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/SpaceGrotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/Visuamall/logo.webp" as="image" type="image/webp">
+<link rel="preload" href="/Visuamall/general/bg%202.jpg" as="image">
+<link rel="preload" href="/Visuamall/general/hero.webp" as="image" type="image/webp">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="VisuaHealth Market">
+<meta property="og:title" content="My account | VisuaHealth Market">
+<meta property="og:description" content="Manage your VHMART profile, products and enquiries.">
+<meta property="og:url" content="https://vhmart.online/account">
+<meta property="og:image" content="https://vhmart.online/Visuamall/general/home-removebg-preview.webp">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="My account | VisuaHealth Market">
+<meta name="twitter:description" content="Manage your VHMART profile, products and enquiries.">
+<meta name="twitter:image" content="https://vhmart.online/Visuamall/general/home-removebg-preview.webp">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"VisuaHealth Market","url":"https://vhmart.online/","logo":"https://vhmart.online/Visuamall/general/home-removebg-preview.webp"}</script>
+<!-- seo:end -->
+</head>
+<body><main class="page">
+<nav class="nav"><a class="brand" href="">VHMART</a><a href="marketplace">Marketplace</a><button id="logout" type="button">Sign out</button></nav>
+<h1>My account</h1>
+<div id="profileMount"></div>
+<div id="securityMount"></div>
+<section class="form-panel" id="details"><p class="empty">Loading your account...</p></section>
+<section class="form-panel">
+  <h2>Delete this account</h2>
+  <p>Deleting your account signs you out and hides your profile and saved products. The record is kept so VHMART can meet legal and record-keeping duties, and an admin can restore it later.</p>
+  <button id="deleteAccount" class="button button--danger" type="button">Delete my account</button>
+  <p id="deleteMessage" role="status"></p>
+</section>
+</main>
 <script type="module">
-import { requireUser, logout } from './js/auth.js'; import { database } from './js/firebase.js'; import { ref, update, serverTimestamp } from 'https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js'; import { joinPhone, selectCountryFor } from './js/contact-links.js';
-const f=document.querySelector('#profileForm'),m=document.querySelector('#msg');document.querySelector('#logout').addEventListener('click',logout);
-requireUser(async(user,p)=>{
-  const { renderPasswordForm, renderEmailForm } = await import('./js/profile-edit.js');
-  const s=document.querySelector('#security'); renderEmailForm(s); renderPasswordForm(s);
-  f.email.value=user.email||p.email||''; for(const k of ['name','phone','whatsapp','facebook','instagram','twitter','tiktok','youtube','linkedin','website']) if(f[k]) f[k].value=p[k]||'';
-  selectCountryFor(f.countryCode,p.phone); selectCountryFor(f.waCountryCode,p.whatsapp); if(p.phone) f.phone.value=p.phone.replace(/^\+/,''); if(p.whatsapp) f.whatsapp.value=p.whatsapp.replace(/^\+/,'');
-  f.addEventListener('submit',async e=>{e.preventDefault(); const b=f.querySelector('button'); b.disabled=true; try{await update(ref(database,`users/${user.uid}`),{name:f.name.value.trim(),phone:joinPhone(f.countryCode,f.phone.value),whatsapp:joinPhone(f.waCountryCode,f.whatsapp.value),facebook:f.facebook.value.trim(),instagram:f.instagram.value.trim(),twitter:f.twitter.value.trim(),tiktok:f.tiktok.value.trim(),youtube:f.youtube.value.trim(),linkedin:f.linkedin.value.trim(),website:f.website.value.trim(),updatedAt:serverTimestamp()}); m.textContent='Profile saved.';}catch(err){m.textContent='Could not save.';}finally{b.disabled=false;}});
-},{loginPath:'login'});
-</script></body></html>
+import { requireUser, logout } from './js/auth.js';
+import { auth, database } from './js/firebase.js';
+import { push, get, ref, set, update, serverTimestamp, query, orderByChild, equalTo } from 'https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js';
+
+logout(document.querySelector('#logout'));
+const details = document.querySelector('#details');
+const deleteMessage = document.querySelector('#deleteMessage');
+
+requireUser(async (user, profile) => {
+  // Profile and security editing. The display name and contact details live in
+  // the database; the password and email live in Firebase Auth and are handled
+  // by the same module because both need re-authentication.
+  const { buildProfileForm, renderPasswordForm, renderEmailForm } = await import('./js/profile-edit.js');
+  const profileHost = document.querySelector('#profileMount');
+  const editor = buildProfileForm({ heading: 'Your details', intro: 'Keep these current so vendors can reach you about an enquiry.' });
+  profileHost.append(editor.form);
+  const securityHost = document.querySelector('#securityMount');
+  renderEmailForm(securityHost);
+  renderPasswordForm(securityHost);
+  if (profile.deletedAt || profile.active === false) { location.href = 'account-deleted'; return; }
+  details.replaceChildren();
+  const heading = document.createElement('h2');
+  heading.textContent = profile.name || profile.email || 'Your account';
+  const email = document.createElement('p');
+  email.textContent = 'Email: ' + (profile.email || user.email || '');
+  const role = document.createElement('p');
+  // An admin has no `role` in their own profile row, because admin access lives
+  // in the admins node or a custom claim. requireUser() resolves it to 'admin',
+  // so a two-way check here used to label every administrator as a Customer.
+  const roleLabel = { admin: 'Administrator', vendor: 'Vendor', customer: 'Customer' }[profile.role] || 'Customer';
+  role.textContent = 'Account type: ' + roleLabel;
+  // Populate the editor with what is already stored, so the form shows the
+  // current values rather than appearing empty and inviting a blind overwrite.
+  try { editor.fill(userSnapshot.val() || {}); } catch (error) { console.error(error); }
+  if (profile.role === 'admin') {
+    role.textContent += ' (full access to every account on the site)';
+  }
+  const joined = document.createElement('p');
+  joined.textContent = 'Joined: ' + (profile.createdAt ? new Date(profile.createdAt).toLocaleDateString() : 'recently');
+  details.append(heading, email, role, joined);
+
+  document.querySelector('#deleteAccount').addEventListener('click', async (event) => {
+    const ok = window.confirm('Delete your VHMART account? You will be signed out and your profile will no longer appear on the site.');
+    if (!ok) return;
+    event.target.disabled = true;
+    deleteMessage.textContent = 'Deleting your account...';
+    try {
+const updates = [];
+      updates.push([`users/${user.uid}`, { active: false, deletedAt: serverTimestamp(), deletedBy: user.uid, updatedAt: serverTimestamp() }]);
+      const vendorSnapshot = await get(ref(database, `vendors/${user.uid}`));
+      if (vendorSnapshot.exists()) {
+        updates.push([`vendors/${user.uid}`, { status: 'SUSPENDED', deletedAt: serverTimestamp(), deletedBy: user.uid, updatedAt: serverTimestamp() }]);
+      }
+      const productSnapshot = await get(query(ref(database, 'products'), orderByChild('ownerUid'), equalTo(user.uid)));
+      if (productSnapshot.exists()) {
+        Object.entries(productSnapshot.val()).forEach(([productId, product]) => {
+          if (!product.deletedAt) updates.push([`products/${productId}`, { status: 'SUSPENDED', deletedAt: serverTimestamp(), deletedBy: user.uid, updatedAt: serverTimestamp() }]);
+        });
+      }
+      // Realtime Database rules only cascade downwards, so a multi-path update
+      // scoped at the root is denied even when each child path is writable.
+      // Each path is written separately, and the account itself goes first so a
+      // partial failure always leaves the account with less access.
+      for (const [path, value] of updates) {
+        await update(ref(database, path), value);
+      }
+      try {
+        await update(push(ref(database, 'audit_logs')), { actor: user.uid, action: 'self_delete_user', target: user.uid, detail: 'Deleted by the account holder', timestamp: serverTimestamp() });
+      } catch (auditError) {
+        // The deletion has already taken effect; a missing audit entry must not
+        // be reported as a failed deletion.
+        console.warn('Self-delete audit entry not written:', auditError && auditError.message);
+      }
+      location.href = 'account-deleted';
+    } catch (error) {
+      console.error(error);
+      deleteMessage.textContent = 'We could not delete your account. Please try again.';
+      event.target.disabled = false;
+    }
+  });
+}, 'login.html', () => { details.textContent = 'We could not load your account. Please refresh and try again.'; });
+</script><script src="js/brand-avatar.js"></script><script src="js/theme.js"></script><script src="js/track.js"></script></body></html>
