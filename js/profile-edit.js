@@ -168,15 +168,26 @@ export function validateProfile(values) {
   for (const key of ['facebook', 'instagram', 'twitter', 'tiktok', 'youtube', 'linkedin', 'website']) {
     const value = String(values[key] || '').trim();
     if (!value) continue;
+    // A bare address is what most vendors type, so accept it and let
+    // safeContactUrl normalise it on the way out. Only refuse something that
+    // carries a scheme we will not follow.
+    const candidate = /^[a-z][a-z0-9+.-]*:/i.test(value) ? value : `https://${value}`;
     let parsed;
     try {
-      parsed = new URL(value);
+      parsed = new URL(candidate);
     } catch {
-      problems.push(`The ${key} link must be a full URL, starting with https://`);
+      problems.push(`The ${key} link does not look like a web address.`);
       continue;
     }
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-      problems.push(`The ${key} link must start with http:// or https://`);
+      problems.push(`The ${key} link must be a web address starting with http:// or https://`);
+      continue;
+    }
+    // A host with no dot parses fine but cannot resolve, so it is a typo rather
+    // than an address. Catching it here gives a useful message instead of a
+    // dead link saved into the profile.
+    if (!parsed.hostname.includes('.')) {
+      problems.push(`The ${key} link needs a full web address, for example https://${key}.com/yourpage`);
     }
   }
 

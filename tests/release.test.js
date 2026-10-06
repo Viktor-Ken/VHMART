@@ -1656,3 +1656,32 @@ assert.ok(validate, 'the enquiry wildcard must carry a .validate rule');
     assert.match(links, /tel:\$\{looksInternational\(value\) \? '\+' : ''\}/,
       'a stored international number must keep its + in the tel: link');
   });
+
+  test('vendor social links work as a vendor would type them', () => {
+    const links = read('js/contact-links.js');
+    const editor = read('js/profile-edit.js');
+
+    // The bug: a vendor typing "facebook.com/chelsy" or "x.com/chelsy" had
+    // their link dropped entirely, so customers saw no button at all. A missing
+    // scheme is a formatting difference, not an invalid value.
+assert.match(links, /const candidate = \/\^\[a-z\]\[a-z0-9\+\.\-\]\*:\/i\.test\(value\)/,
+      'a missing scheme must be filled in, not rejected');
+    assert.match(links, /: `https:\/\/\$\{value\}`/,
+      'the filled-in scheme must be https');
+    assert.match(editor, /const candidate = \/\^\[a-z\]\[a-z0-9\+\.\-\]\*:\/i\.test\(value\)/,
+      'the profile form must accept the same forms');
+
+    // The reason the block exists at all must survive: a link labelled Facebook
+    // has to point at Facebook.
+    assert.match(links, /if \(key !== 'website' && !isKnownSocialHost\(parsed\.hostname, key\)\) return null/,
+      'a social link must still match its own network');
+    assert.match(links, /SAFE_SCHEMES\.has\(parsed\.protocol\)/,
+      'the scheme check must remain');
+
+    // A dotless host parses as valid but cannot resolve, so it would render as a
+    // button that goes nowhere.
+    assert.match(links, /if \(!parsed\.hostname\.includes\('\.'\)\) return null/,
+      'a dotless host must not become a dead button');
+    assert.match(editor, /if \(!parsed\.hostname\.includes\('\.'\)\)/,
+      'the profile form must warn on a dotless host');
+  });

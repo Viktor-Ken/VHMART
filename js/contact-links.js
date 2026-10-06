@@ -131,14 +131,22 @@ export function safeContactUrl(key, raw) {
     return key === 'whatsapp' ? `https://wa.me/${digits}` : `tel:${looksInternational(value) ? '+' : ''}${digits}`;
   }
 
+  // A vendor who types "facebook.com/chelsy" means exactly that address, so a
+  // missing scheme is filled in rather than treated as a bad value. Rejecting it
+  // instead meant perfectly good links silently vanished from the panel.
+  const candidate = /^[a-z][a-z0-9+.-]*:/i.test(value) ? value : `https://${value}`;
+
   let parsed;
   try {
-    parsed = new URL(value);
+    parsed = new URL(candidate);
   } catch {
     return null;
   }
   if (!SAFE_SCHEMES.has(parsed.protocol)) return null;
   if (key !== 'website' && !isKnownSocialHost(parsed.hostname, key)) return null;
+  // A dotless host parses but cannot resolve. Left in, it becomes a button that
+  // goes nowhere, which is worse for the vendor than not showing it at all.
+  if (!parsed.hostname.includes('.')) return null;
   // A bare http link is upgraded: contact links should not be downgradable.
   return parsed.protocol === 'http:' ? `https://${parsed.host}${parsed.pathname}${parsed.search}${parsed.hash}` : parsed.href;
 }
