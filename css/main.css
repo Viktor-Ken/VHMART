@@ -113,3 +113,11 @@ button, .button { border: 0; border-radius: 6px; cursor: pointer; display: inlin
 .notice strong { color: var(--coral); }
 [data-theme="dark"] .notice { background: #2a1d19; }
 .contact-steps { padding-left: 1.2em; line-height: 1.7; }
+
+/* Sign out control in the public menu, styled like its neighbouring links. */
+.session-signout { min-height: 0; padding: 9px 12px; border-radius: 7px; background: transparent; color: inherit; font-size: .86rem; font-weight: 700; }
+.session-signout:hover { background: rgba(255,255,255,.65); color: var(--green); }
+.nav-links .session-signout { padding: 0; color: var(--muted); font-size: 1rem; }
+.mobile-drawer .session-signout { justify-content: flex-start; font-size: 1rem; padding: 12px 0; }
+[data-theme="dark"] .session-signout:hover { background: #1b2724; }
+[hidden] { display: none !important; }

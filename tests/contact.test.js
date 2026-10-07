@@ -220,3 +220,34 @@ test('analytics is recorded on public pages and readable by the admin', () => {
   assert.match(read('js/admin.js'), /recentTraffic/);
   assert.match(read('admin/analytics.html'), /role !== 'admin'/, 'analytics page must be admin only');
 });
+
+// ---------------------------------------------------------------------------
+// Session state and admin accounts
+// ---------------------------------------------------------------------------
+
+test('public pages show the real sign-in state and offer sign out', () => {
+  for (const file of htmlFiles()) {
+    if (file.startsWith('vendor/') && file !== 'vendor/register.html') continue;
+    if (file.startsWith('admin/')) continue;
+    const source = read(file);
+    const prefix = file.startsWith('product/') ? '/' : file.includes('/') ? '../' : '';
+    if (/class="(live-links|nav-links)"|id="mobileDrawer"|id="loginForm"|id="registerForm"/.test(source) || file.startsWith('product/')) {
+      assert.ok(source.includes(`${prefix}js/session.js`), `${file} does not load js/session.js`);
+    }
+  }
+  assert.match(read('js/session.js'), /Sign out/);
+  assert.match(read('js/session.js'), /already signed in/, 'sign-in pages must not let a second person sign in over the first');
+});
+
+test('suspended and deleted accounts cannot stay signed in', () => {
+  assert.match(read('js/auth.js'), /active === false \|\| userProfile\.deletedAt/);
+  assert.match(read('js/session-core.js'), /isBlocked/);
+  assert.match(read('login.html'), /profile\.active===false\|\|profile\.deletedAt/);
+});
+
+test('the admin accounts page lists customers and vendors, including suspended and deleted', () => {
+  const page = read('admin/accounts.html');
+  for (const word of ['Customers', 'Vendors', 'Suspended', 'Deleted', 'Restore', 'Reinstate']) assert.match(page, new RegExp(word));
+  assert.match(page, /role !== 'admin'/, 'accounts page must be admin only');
+  assert.match(read('admin/dashboard.html'), /href="accounts\.html"/);
+});
