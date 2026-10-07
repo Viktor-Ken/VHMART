@@ -47,11 +47,51 @@ test('the marketplace reserves a screen of height so the footer does not jump wh
 test('the product page renders before it loads Firebase', () => {
   const page = read('product.html');
   assert.doesNotMatch(page, /^import \{ database \}/m);
-  assert.match(page, /import\('\.\/js\/firebase\.js'\)/);
+  assert.match(page, /import\('\.\/js\/firebase-db\.js'\)/);
 });
 
 test('the publish step ships long cache headers for fonts, images and thumbnails', () => {
   const build = read('scripts/build-publish.js');
   for (const rule of ['/fonts/*', '/Visuamall/*', '/product/thumb/*', '/css/*', '/js/*']) assert.ok(build.includes(rule), `no cache rule for ${rule}`);
   assert.match(build, /max-age=31536000, immutable/);
+});
+
+test('traffic is recorded over plain HTTPS, with no Firebase SDK on ordinary page views', () => {
+  const track = read('js/track.js');
+  assert.doesNotMatch(track, /gstatic|import\(/);
+  assert.match(track, /firebaseio\.com/);
+  assert.match(track, /increment/);
+  assert.doesNotMatch(read('js/analytics.js'), /runTransaction|trackPageView/);
+});
+
+test('anonymous visitors do not download Firebase just to check for a session', () => {
+  const session = read('js/session.js');
+  assert.match(session, /!onAuthPage && !hint && storageWorks\(\)/);
+  assert.match(read('js/session-core.js'), /provisional hint/);
+});
+
+test('Firebase Storage is not loaded, and read-only pages skip the auth SDK', () => {
+  assert.doesNotMatch(read('js/firebase.js'), /firebase-storage|getStorage/);
+  assert.match(read('js/firebase-db.js'), /getDatabase/);
+  assert.doesNotMatch(read('js/firebase-db.js'), /firebase-auth/);
+  for (const file of ['vendor-profile.html', 'js/marketplace.js', 'product.html']) assert.match(read(file), /firebase-db\.js/, `${file} should use the database-only module`);
+});
+
+test('sign-in pages warm up Firebase and the Google button cannot be clicked before it works', () => {
+  for (const file of ['login.html', 'register.html', 'vendor/register.html']) {
+    assert.match(read(file), /rel="modulepreload" href="https:\/\/www\.gstatic\.com\/firebasejs\/12\.10\.0\/firebase-auth\.js"/, `${file} does not preload the auth SDK`);
+  }
+  assert.match(read('login.html'), /id="googleBtn" class="button" type="button" disabled/);
+  assert.match(read('login.html'), /googleBtn\.disabled=false;/);
+});
+
+test('new vendors are created pending and an administrator can approve or decline them', () => {
+  assert.match(read('vendor/register.html'), /status:'PENDING'/);
+  const page = read('admin/vendors.html');
+  for (const word of ['Pending approval', 'Approve', 'Decline', 'Suspend', 'Reactivate']) assert.match(page, new RegExp(word));
+  assert.match(page, /role !== 'admin'/);
+  assert.match(read('vendor/dashboard.html'), /Waiting for approval/);
+  assert.match(read('js/vendor-product-form.js'), /profile\.status!=='ACTIVE'/);
+  const rules = JSON.parse(read('firebase/database.rules.json')).rules.vendors['$id']['.write'];
+  assert.match(rules, /newData\.child\('status'\)\.val\(\) === 'PENDING'/, 'rules must let a vendor create only a pending record');
 });

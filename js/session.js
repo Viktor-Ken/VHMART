@@ -100,6 +100,8 @@
         panel.appendChild(notice);
     }
 
+    function storageWorks() { try { localStorage.setItem(KEY + '_t', '1'); localStorage.removeItem(KEY + '_t'); return true; } catch (e) { return false; } }
+
     var hint = readHint();
     function start() {
         paintMenu(hint);
@@ -116,6 +118,11 @@
             }).catch(function (error) { console.warn('Session check unavailable:', error && error.message); });
         };
         var onAuthPage = !!document.querySelector('#loginForm, #registerForm');
+        // An anonymous visitor (no saved hint) has no session to check, so the Firebase
+        // SDK is not downloaded at all on public pages. It loads when a hint says
+        // someone is signed in, on the sign-in/sign-up pages, or when the browser
+        // cannot keep a hint (storage blocked), so the real state is never missed.
+        if (!onAuthPage && !hint && storageWorks()) return;
         if (onAuthPage || typeof window.requestIdleCallback !== 'function') { begin(); }
         else { window.requestIdleCallback(begin, { timeout: 2500 }); }
     }
