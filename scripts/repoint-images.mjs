@@ -40,7 +40,7 @@ for (const file of texts) {
   const text = await readFile(file, 'utf8');
   for (const match of text.matchAll(PATTERN)) {
     const rel = match[1];
-    if (!onDisk(rel)) {
+    if (!(await onDisk(rel))) {
       // A renamed asset keeps its stem, so point at the replacement rather than
       // only reporting it. Deriving this from the filesystem rather than from
       // `git status` matters: once a rename has been committed, git no longer

@@ -1,5 +1,6 @@
-// Regenerates products.json, then writes every SEO artefact that depends on the
-// catalogue: robots.txt, sitemap.xml and one static page per product.
+// Regenerates products.json (with product images as files, not base64), then writes
+// every SEO artefact that depends on the catalogue: robots.txt, sitemap.xml and one
+// static page per product.
 //
 // Run it before every deploy so the pages Google indexes never lag behind the
 // live database:  npm run build:seo
@@ -89,7 +90,7 @@ const STATIC_URLS = [
   { path: 'terms-and-conditions', priority: '0.3', changefreq: 'yearly' },
   // Deliberately absent: /random, /login, /register and /vendor are marked
   // noindex by seo-heads.js, and a sitemap must not list a noindex page.
-  // Admin, account and vendor-dashboard pages are excluded for the same reason.
+  // Admin and vendor-dashboard pages are excluded for the same reason.
 ];
 
 const CATEGORY_PRIORITY = {
@@ -238,22 +239,14 @@ ${imageUrl ? `  <img src="/${escapeXml(imageUrl)}" alt="${escapeXml(title)}" wid
     <p class="product-price">${price ? escapeXml(`₦${price}`) : 'Contact vendor for price'}</p>
     <p>${escapeXml(product.description || 'Ask the vendor for more information about this product.')}</p>
     <p><small>${escapeXml([categoryId, product.availability, vendorLine].filter(Boolean).join(' | '))}</small></p>
-    ${product.vendorId ? `<p><a class="button button--primary" href="/vendor-profile?id=${encodeURIComponent(product.vendorId)}">View vendor</a></p>
-    <p><a href="/enquiry?vendor=${encodeURIComponent(product.vendorId)}&amp;product=${encodeURIComponent(product.id)}">Send an enquiry about this product</a></p>` : `<p><a href="/contact">Ask about this product</a></p>`}
+    ${product.vendorId ? `<p><a class="button button--primary" href="/vendor-profile?id=${encodeURIComponent(product.vendorId)}&amp;product=${encodeURIComponent(product.id)}">I&rsquo;m interested &ndash; view vendor</a></p>
+    <p><small>On the vendor&rsquo;s page you can contact them directly or send an enquiry.</small></p>` : `<p><a href="/contact">Ask about this product</a></p>`}
   </div>
 </article>
 </main>
 <footer class="live-footer"><div><strong>${escapeXml(SITE_NAME)}</strong><p>Discover products. View vendors. Send an enquiry.</p></div><div><h2>Additional Links</h2><a href="/">Home</a><a href="/categories">Categories</a><a href="/contact">Contact</a><a href="/terms-and-conditions">Terms of Use</a></div></footer>
 <script src="/js/brand-avatar.js"></script>
 <script src="/js/theme.js"></script>
-<script src="/js/track.js"></script>
-<script type="module">
-// A customer who decides they want this product goes to the vendor's profile,
-// where they can read the rest of the listing and choose between sending an
-// enquiry or contacting the vendor directly. Both links are plain anchors, so
-// they work with JavaScript disabled and need no module import.
-${product.vendorId ? `<p><a class="button button--primary" href="/vendor-profile?id=${encodeURIComponent(product.vendorId)}">View vendor</a></p>` : ''}
-</script>
 </body>
 </html>
 `;
@@ -269,19 +262,15 @@ async function writeRobots() {
     'User-agent: *',
     'Allow: /',
     '',
-    '# Nothing here is useful in a search result, and several pages read and write',
-    '# the signed-in account. Keeping them out saves crawl budget.',
+    '# Nothing here is useful in a search result, and the vendor pages read and write',
+    '# the signed-in vendor account. Keeping them out saves crawl budget.',
     'Disallow: /admin/',
-    'Disallow: /account',
     'Disallow: /vendor/dashboard',
     'Disallow: /vendor/add-product',
     'Disallow: /vendor/edit-product',
     'Disallow: /vendor/products',
     'Disallow: /vendor/enquiries',
     'Disallow: /vendor/profile',
-    'Disallow: /account-deleted',
-    'Disallow: /vendor/pending',
-    'Disallow: /vendor/deleted',
     '',
     'Sitemap: https://vhmart.online/sitemap.xml',
     ''
@@ -350,6 +339,21 @@ async function removeStaleProductFiles(pages) {
 try {
   const products = await fetchPublishedProducts();
 
+  // Pages first: writing a page extracts the product's base64 image into a real file
+  // under product/, and the snapshot below points at that file.
+  const pages = await writeProductPages(products);
+  console.log(`Static product pages: ${pages.length} written to ${path.relative(rootDir, productDir)}/`);
+
+  // products.json is downloaded by the home page, the marketplace and every vendor
+  // page. With each image embedded as base64 it was about 3 MB, so the home page sat
+  // on "Loading products..." while it downloaded pictures it would not show yet. The
+  // images were already being written to product/, so the snapshot points at those
+  // files instead and the browser fetches only the ones it actually displays.
+  const imageById = new Map(pages.map((page) => [page.id, page.imageUrl]));
+  const slimProducts = products.map((product) => (
+    imageById.get(product.id) ? { ...product, image: `/${imageById.get(product.id)}` } : product
+  ));
+
   // generatedAt was stamped with the wall clock on every run, so products.json
   // differed on every run even when the catalogue was untouched, and every
   // build left a modified file behind. The field is only worth having if it
@@ -359,7 +363,7 @@ try {
   // notify-indexnow reads this to pick which URLs to resubmit and walks back a
   // day from it. A stamp that only moves on a real change is exactly what that
   // wants: an unchanged catalogue has nothing new to submit.
-  const body = { count: products.length, products };
+  const body = { count: slimProducts.length, products: slimProducts };
   const serialisedBody = JSON.stringify(body, null, 2);
   let generatedAt = new Date().toISOString();
   try {
@@ -376,9 +380,6 @@ try {
   const snapshotChanged = await writeIfChanged(outputPath, JSON.stringify(snapshot, null, 2));
   console.log(snapshotChanged ? `Snapshot written: ${outputPath}` : `Snapshot unchanged: ${outputPath}`);
   console.log(`Published products: ${products.length}`);
-
-  const pages = await writeProductPages(products);
-  console.log(`Static product pages: ${pages.length} written to ${path.relative(rootDir, productDir)}/`);
 
   const removed = await removeStaleProductFiles(pages);
   if (removed) console.log(`Removed ${removed} stale generated file(s) from ${path.relative(rootDir, productDir)}/.`);

@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="css/main.css">
+<!-- seo:start -->
+<title>Vendor profile | VisuaHealth Market</title>
+<meta name="description" content="A VHMART vendor profile: products, contact options and enquiries.">
+<link rel="canonical" href="https://vhmart.online/vendor-profile">
+<meta name="robots" content="noindex,nofollow">
+<link rel="preload" href="/fonts/DMSans-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/SpaceGrotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/Visuamall/logo.webp" as="image" type="image/webp">
+<link rel="preload" href="/Visuamall/general/bg%202.jpg" as="image">
+<link rel="preload" href="/Visuamall/general/hero.webp" as="image" type="image/webp">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="VisuaHealth Market">
+<meta property="og:title" content="Vendor profile | VisuaHealth Market">
+<meta property="og:description" content="A VHMART vendor profile: products, contact options and enquiries.">
+<meta property="og:url" content="https://vhmart.online/vendor-profile">
+<meta property="og:image" content="https://vhmart.online/Visuamall/general/home-removebg-preview.webp">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Vendor profile | VisuaHealth Market">
+<meta name="twitter:description" content="A VHMART vendor profile: products, contact options and enquiries.">
+<meta name="twitter:image" content="https://vhmart.online/Visuamall/general/home-removebg-preview.webp">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"VisuaHealth Market","url":"https://vhmart.online/","logo":"https://vhmart.online/Visuamall/general/home-removebg-preview.webp"}</script>
+<!-- seo:end -->
+</head>
+<body>
+<header class="site-header"><nav class="nav" aria-label="Main navigation"><a class="brand" href="index.html">VHMART</a><div class="nav-links"><a href="marketplace.html">Marketplace</a><a href="categories.html">Categories</a><a href="login.html">Sign in</a></div></nav></header>
+<main class="page">
+  <a id="backLink" href="marketplace.html">Back to marketplace</a>
+  <div id="vendorDetail" class="vendor-profile"><p class="empty">Loading vendor...</p></div>
+</main>
+<script type="module">
+// Public vendor profile.
+//
+// A customer who is interested in a product lands here from the product page and
+// chooses between two different actions:
+//
+//   Make an enquiry  - write a message on the enquiry page. It is saved and shown to
+//                      the vendor under Enquiries in their dashboard.
+//   Contact vendor   - read and accept the terms, then pick one of the vendor's own
+//                      channels (phone, WhatsApp, social pages). It opens that app
+//                      or site directly.
+//
+// The contact panel is a separate module, loaded only when the customer asks for it.
+
+import { database } from './js/firebase.js';
+import { get, ref } from 'https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js';
+import { getPublishedProducts, getProductById, productCard } from './js/marketplace.js';
+
+// Both ids come straight off the query string; vendorId is used as a database path.
+const SAFE_ID = /^[A-Za-z0-9_-]{1,128}$/;
+const params = new URLSearchParams(location.search);
+const vendorId = (params.get('id') || '').trim();
+const requestedProductId = (params.get('product') || '').trim();
+
+const root = document.querySelector('#vendorDetail');
+
+function el(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text != null) node.textContent = text;
+  return node;
+}
+
+function show(message, className = 'empty') {
+  root.replaceChildren(el('p', className, message));
+}
+
+if (!vendorId || !SAFE_ID.test(vendorId)) {
+  show('This vendor link is not valid.');
+} else {
+  await render(vendorId);
+}
+
+async function render(id) {
+  let vendor = null;
+  try {
+    vendor = (await get(ref(database, `vendors/${id}`))).val();
+  } catch (error) {
+    console.error('Vendor load failed:', error);
+    show('We could not load this vendor right now. Please try again.', 'error');
+    return;
+  }
+
+  // The database rules refuse a read for anything that is not ACTIVE, so reaching
+  // here without a vendor means it was suspended or never existed.
+  if (!vendor || vendor.status !== 'ACTIVE') {
+    show('This vendor is not currently available.');
+    return;
+  }
+
+  const vendorName = vendor.businessName || 'VHMART vendor';
+  document.title = `${vendorName} | VHMART`;
+
+  // The product the customer came from, if there is one and it really belongs to
+  // this vendor. It is passed on to the enquiry page and used in the message that
+  // opens in WhatsApp or email.
+  let product = null;
+  if (requestedProductId && SAFE_ID.test(requestedProductId)) {
+    try {
+      const found = await getProductById(requestedProductId);
+      if (found && found.vendorId === id) product = found;
+    } catch (error) {
+      console.warn('Could not look up the product:', error);
+    }
+  }
+  if (product) document.querySelector('#backLink').href = `product.html?id=${encodeURIComponent(product.id)}`;
+
+  const card = el('section', 'form-panel');
+  card.append(el('h1', null, vendorName));
+  if (vendor.categoryId) card.append(el('p', 'vendor-meta', vendor.categoryId.replaceAll('-', ' ')));
+  if (product) card.append(el('p', 'vendor-interest', `You are interested in: ${product.name || 'this product'}`));
+  card.append(el('p', null, vendor.description || 'A VHMART marketplace vendor.'));
+
+  const actions = el('div', 'vendor-actions');
+  const contactButton = el('button', 'button button--primary', 'Contact vendor');
+  contactButton.type = 'button';
+  contactButton.setAttribute('aria-expanded', 'false');
+
+  const enquire = el('a', 'button button--quiet', 'Make an enquiry');
+  enquire.href = `enquiry.html?vendor=${encodeURIComponent(id)}${product ? `&product=${encodeURIComponent(product.id)}` : ''}`;
+  actions.append(contactButton, enquire);
+  card.append(actions);
+
+  const panel = el('div', 'contact-panel');
+  panel.hidden = true;
+  card.append(panel);
+
+  let rendered = false;
+  contactButton.addEventListener('click', async () => {
+    if (!rendered) {
+      contactButton.disabled = true;
+      try {
+        const { renderContactPanel } = await import('./js/contact-vendor.js');
+        renderContactPanel(panel, { vendor, vendorName, productName: product ? product.name : '', enquiryUrl: enquire.href });
+        rendered = true;
+      } catch (error) {
+        console.error('Contact panel failed to load:', error);
+        contactButton.disabled = false;
+        panel.hidden = false;
+        panel.replaceChildren(el('p', 'error', 'We could not load the contact options. Please try again.'));
+        return;
+      }
+      contactButton.disabled = false;
+    }
+    panel.hidden = !panel.hidden;
+    contactButton.setAttribute('aria-expanded', String(!panel.hidden));
+    if (!panel.hidden) panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
+
+  root.replaceChildren(card, await productSection(id, product));
+}
+
+// The catalogue comes from the cached snapshot (with the database as a fallback),
+// so this page does not re-download every product just to list one vendor's.
+async function productSection(id, current) {
+  const section = el('section', 'vendor-products');
+  section.append(el('h2', null, 'Products from this vendor'));
+
+  let products = [];
+  try {
+    products = (await getPublishedProducts()).filter((product) => product.vendorId === id);
+  } catch (error) {
+    console.error('Vendor products failed to load:', error);
+    section.append(el('p', 'error', 'We could not load this vendor’s products just now. Please try again shortly.'));
+    return section;
+  }
+
+  if (!products.length) {
+    section.append(el('p', 'empty', 'This vendor has no published products right now.'));
+    return section;
+  }
+
+  // Put the product the customer was looking at first.
+  products.sort((a, b) => (current && b.id === current.id) - (current && a.id === current.id) || String(a.name || '').localeCompare(String(b.name || '')));
+  const grid = el('div', 'product-grid');
+  products.forEach((product) => grid.append(productCard(product)));
+  section.append(grid);
+  return section;
+}
+</script>
+<script src="js/brand-avatar.js"></script>
+<script src="js/theme.js"></script>
+</body>
+</html>

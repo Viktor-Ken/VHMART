@@ -1,5 +1,15 @@
-import { database } from "./firebase.js";
-import { get, ref, query, orderByChild, equalTo } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js";
+// Firebase is loaded only when it is needed. The catalogue normally comes from the
+// small products.json snapshot, so the home page and marketplace no longer download
+// the Firebase SDK (several modules from gstatic) just to draw their first product
+// cards, and a blocked or slow SDK request can no longer leave them stuck on
+// "Loading products...".
+async function loadFirebase() {
+    const [{ database }, db] = await Promise.all([
+        import("./firebase.js"),
+        import("https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js")
+    ]);
+    return { database, ...db };
+}
 
 export const categories = [
     { id: "general", name: "General", image: "Visuamall/general/bg1.avif" },
@@ -34,6 +44,7 @@ async function loadSnapshot() {
 }
 
 async function getPublishedProductsFromDb() {
+    const { database, get, ref, query, orderByChild, equalTo } = await loadFirebase();
     const snapshot = await get(query(ref(database, "products"), orderByChild("status"), equalTo("PUBLISHED")));
     if (!snapshot.exists()) return [];
     return Object.entries(snapshot.val()).map(([id, product]) => ({ id, ...product }))
@@ -57,6 +68,7 @@ export async function getProductById(id) {
     } catch (error) {
         console.warn("Snapshot unusable for product lookup, falling back to live database:", error.message || error);
     }
+    const { database, get, ref } = await loadFirebase();
     const snapshot = await get(ref(database, `products/${id}`));
     if (!snapshot.exists()) return null;
     const product = snapshot.val();
