@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="css/main.css">
+
+<link rel="preconnect" href="https://www.gstatic.com" crossorigin><link rel="modulepreload" href="https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js"><link rel="modulepreload" href="https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js"><link rel="preconnect" href="https://visuamall-a620f-default-rtdb.firebaseio.com" crossorigin><link rel="modulepreload" href="js/firebase-app.js"><link rel="modulepreload" href="js/firebase-db.js">
 <!-- seo:start -->
 <title>Vendor profile | VisuaHealth Market</title>
 <meta name="description" content="A VHMART vendor profile: products, contact options and enquiries.">
@@ -47,7 +49,7 @@
 //
 // The contact panel is a separate module, loaded only when the customer asks for it.
 
-import { database } from './js/firebase.js';
+import { database } from './js/firebase-db.js';
 import { get, ref } from 'https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js';
 import { getPublishedProducts, getProductById, productCard } from './js/marketplace.js';
 

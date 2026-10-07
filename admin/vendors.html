@@ -1,1 +1,131 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Vendors | VHMART</title><link rel="stylesheet" href="../css/main.css"></head><body><main class="page"><p><a href="dashboard.html">← Admin dashboard</a></p><h1>Vendors</h1><p>Vendors can register and publish products without approval. You can suspend or reactivate an account here.</p><div id="list"><p class="empty">Loading vendors...</p></div></main><script type="module">import { requireUser } from '../js/auth.js';import { database } from '../js/firebase.js';import { get,ref,update,serverTimestamp,query,orderByChild,equalTo } from 'https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js';requireUser(async(user,profile)=>{if(profile.role!=='admin'){location.href='../index.html';return;}const list=document.querySelector('#list');try{const snapshot=await get(ref(database,'vendors'));list.replaceChildren();if(!snapshot.exists()){list.textContent='No vendors found.';return;}Object.entries(snapshot.val()).forEach(([id,vendor])=>{const card=document.createElement('article');card.className='form-panel';const title=document.createElement('h2');title.textContent=vendor.businessName||'Unnamed vendor';const details=document.createElement('p');details.textContent=`${vendor.contactName||''} · ${vendor.email||''} · ${vendor.phone||''}`;const status=document.createElement('p');status.textContent=`Status: ${vendor.status||'ACTIVE'}`;const button=document.createElement('button');button.className='button '+(vendor.status==='SUSPENDED'?'button--primary':'button--quiet');button.textContent=vendor.status==='SUSPENDED'?'Reactivate':'Suspend';button.addEventListener('click',async()=>{button.disabled=true;const next=vendor.status==='SUSPENDED'?'ACTIVE':'SUSPENDED';try{const productsSnapshot=await get(query(ref(database,'products'),orderByChild('vendorId'),equalTo(id)));const updates={};updates[`vendors/${id}`]={...vendor,status:next,updatedAt:serverTimestamp()};if(productsSnapshot.exists()){Object.entries(productsSnapshot.val()).forEach(([productId,product])=>{if(next==='SUSPENDED'&&product.status==='PUBLISHED')updates[`products/${productId}`]={status:'SUSPENDED',vendorSuspended:true,updatedAt:serverTimestamp()};else if(next==='ACTIVE'&&product.status==='SUSPENDED'&&product.vendorSuspended===true)updates[`products/${productId}`]={status:'PUBLISHED',vendorSuspended:false,updatedAt:serverTimestamp()};});}await update(ref(database),updates);status.textContent=`Status: ${next}`;button.textContent=next==='SUSPENDED'?'Reactivate':'Suspend';button.className='button '+(next==='SUSPENDED'?'button--primary':'button--quiet');vendor.status=next;}catch(error){console.error(error);status.textContent='Could not update this vendor. Please try again.';}finally{button.disabled=false;}});card.append(title,details,status,button);list.append(card);});}catch(error){console.error(error);list.textContent='Could not load vendors. Please refresh and try again.';}});</script><script src="../js/brand-avatar.js"></script><script src="../js/theme.js"></script><script src="../js/track.js"></script></body></html>
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Vendors | VHMART</title><link rel="stylesheet" href="../css/main.css"></head>
+<body><main class="page">
+<nav class="nav"><a class="brand" href="dashboard.html">VHMART admin</a><a href="accounts.html">Accounts</a><a href="vendors.html">Vendors</a><a href="products.html">Products</a><a href="analytics.html">Analytics</a><button id="logout" type="button">Sign out</button></nav>
+<h1>Vendors</h1>
+<p>New vendors wait here for approval. Nothing they add is visible on the site until you approve them. You can also suspend an active vendor or approve one you declined earlier.</p>
+<div id="counts" class="category-grid"><p class="empty">Loading vendors...</p></div>
+<div class="button-row" id="filters" style="margin:16px 0">
+  <button type="button" class="button button--primary" data-filter="PENDING">Pending approval</button>
+  <button type="button" class="button button--quiet" data-filter="ACTIVE">Active</button>
+  <button type="button" class="button button--quiet" data-filter="SUSPENDED">Suspended</button>
+  <button type="button" class="button button--quiet" data-filter="DECLINED">Declined</button>
+  <button type="button" class="button button--quiet" data-filter="ALL">All</button>
+</div>
+<div id="list"><p class="empty">Loading vendors...</p></div>
+<p id="message" role="status"></p>
+</main>
+<script type="module">
+import { requireUser, logout } from '../js/auth.js';
+import { database } from '../js/firebase.js';
+import { get, ref, update, push, query, orderByChild, equalTo, serverTimestamp } from 'https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js';
+
+logout(document.querySelector('#logout'));
+const list = document.querySelector('#list'), counts = document.querySelector('#counts'), message = document.querySelector('#message');
+let filter = 'PENDING', vendors = [], me = null;
+
+function el(tag, className, text) { const node = document.createElement(tag); if (className) node.className = className; if (text != null) node.textContent = text; return node; }
+const when = (value) => (Number(value) ? new Date(Number(value)).toLocaleDateString('en-NG', { dateStyle: 'medium' }) : 'unknown date');
+const LABEL = { PENDING: 'Pending approval', ACTIVE: 'Active', SUSPENDED: 'Suspended', DECLINED: 'Declined' };
+
+async function log(action, target, detail) {
+  try { await update(push(ref(database, 'audit_logs')), { actor: me.uid, action, target, detail: detail || '', timestamp: serverTimestamp() }); } catch (error) { console.warn('Audit log not written:', error); }
+}
+
+// A vendor's products follow the vendor: suspending hides live ones, approving or
+// reinstating brings back only the ones that action hid.
+async function syncProducts(vendorId, suspend) {
+  const snapshot = await get(query(ref(database, 'products'), orderByChild('vendorId'), equalTo(vendorId)));
+  if (!snapshot.exists()) return;
+  for (const [id, product] of Object.entries(snapshot.val())) {
+    if (suspend && product.status === 'PUBLISHED') await update(ref(database, `products/${id}`), { status: 'SUSPENDED', vendorSuspended: true, updatedAt: serverTimestamp() });
+    else if (!suspend && product.status === 'SUSPENDED' && product.vendorSuspended === true) await update(ref(database, `products/${id}`), { status: 'PUBLISHED', vendorSuspended: false, updatedAt: serverTimestamp() });
+  }
+}
+
+async function decide(vendor, status, reason) {
+  const now = serverTimestamp();
+  if (status === 'ACTIVE') {
+    // Least access first: the vendor record, then the account, then their products.
+    await update(ref(database, `vendors/${vendor.id}`), { status: 'ACTIVE', declinedReason: '', updatedAt: now });
+    await update(ref(database, `users/${vendor.id}`), { active: true, updatedAt: now });
+    await syncProducts(vendor.id, false);
+    await log(vendor.status === 'SUSPENDED' ? 'reinstate_vendor' : 'approve_vendor', vendor.id, vendor.email);
+  } else {
+    await update(ref(database, `vendors/${vendor.id}`), { status, declinedReason: reason || '', updatedAt: now });
+    if (status !== 'DECLINED' || vendor.status === 'ACTIVE') await syncProducts(vendor.id, true);
+    await log(status === 'DECLINED' ? 'reject_vendor' : 'suspend_vendor', vendor.id, reason || vendor.email);
+  }
+}
+
+function renderCounts() {
+  const n = (status) => vendors.filter((v) => v.status === status).length;
+  counts.replaceChildren(...[['Pending approval', n('PENDING')], ['Active', n('ACTIVE')], ['Suspended', n('SUSPENDED')], ['Declined', n('DECLINED')]].map(([label, value]) => {
+    const card = el('article', 'category-card'); card.style.backgroundImage = label === 'Pending approval' && value ? 'linear-gradient(135deg,#e76f51,#f5c451)' : 'linear-gradient(135deg,#176b55,#e76f51)';
+    card.append(el('h2', null, `${label}: ${value}`)); return card;
+  }));
+}
+
+function renderList() {
+  const rows = vendors.filter((v) => filter === 'ALL' || v.status === filter);
+  list.replaceChildren();
+  if (!rows.length) { list.append(el('p', 'empty', filter === 'PENDING' ? 'No vendors are waiting for approval.' : 'No vendors in this view.')); return; }
+  for (const vendor of rows) {
+    const card = el('article', 'form-panel');
+    card.append(el('h2', null, vendor.businessName || 'Unnamed vendor'));
+    card.append(el('p', null, `${LABEL[vendor.status] || vendor.status} · ${String(vendor.categoryId || '').replaceAll('-', ' ')}`));
+    card.append(el('p', null, [vendor.contactName, vendor.email, vendor.phone].filter(Boolean).join(' · ')));
+    if (vendor.description) card.append(el('p', null, vendor.description));
+    card.append(el('p', null, `Registered: ${when(vendor.createdAt)}`));
+    if (vendor.declinedReason && vendor.status === 'DECLINED') card.append(el('p', null, `Reason given: ${vendor.declinedReason}`));
+    const actions = el('div', 'button-row');
+    const act = (label, className, run) => {
+      const button = el('button', `button ${className}`, label); button.type = 'button';
+      button.addEventListener('click', async () => {
+        button.disabled = true; message.textContent = ''; message.className = '';
+        try { const done = await run(); if (done === false) { button.disabled = false; return; } await load(); message.textContent = `${vendor.businessName || vendor.email}: done.`; }
+        catch (error) { console.error(error); button.disabled = false; message.className = 'error'; message.textContent = 'That change could not be saved. Please try again.'; }
+      });
+      actions.append(button);
+    };
+    if (vendor.status === 'PENDING' || vendor.status === 'DECLINED') act('Approve', 'button--primary', () => decide(vendor, 'ACTIVE'));
+    if (vendor.status === 'PENDING') act('Decline', 'button--danger', () => {
+      const reason = window.prompt('Reason for declining (shown to the vendor)', 'Does not meet VHMART vendor requirements');
+      return reason === null ? false : decide(vendor, 'DECLINED', reason.trim().slice(0, 300));
+    });
+    if (vendor.status === 'ACTIVE') act('Suspend', 'button--quiet', () => (window.confirm(`Suspend ${vendor.businessName}? Their products will be hidden.`) ? decide(vendor, 'SUSPENDED') : false));
+    if (vendor.status === 'SUSPENDED') act('Reactivate', 'button--primary', () => decide(vendor, 'ACTIVE'));
+    card.append(actions);
+    list.append(card);
+  }
+}
+
+async function load() {
+  const snapshot = await get(ref(database, 'vendors'));
+  vendors = Object.entries(snapshot.exists() ? snapshot.val() : {})
+    .filter(([, v]) => !v.deletedAt)
+    .map(([id, v]) => ({ id, ...v, status: v.status || 'ACTIVE' }))
+    .sort((a, b) => (Number(b.createdAt) || 0) - (Number(a.createdAt) || 0));
+  renderCounts(); renderList();
+}
+
+document.querySelectorAll('[data-filter]').forEach((button) => button.addEventListener('click', () => {
+  filter = button.dataset.filter;
+  document.querySelectorAll('[data-filter]').forEach((other) => { other.className = `button ${other === button ? 'button--primary' : 'button--quiet'}`; });
+  renderList();
+}));
+
+requireUser(async (user, profile) => {
+  if (profile.role !== 'admin') { location.href = '../index.html'; return; }
+  me = user;
+  try {
+    await load();
+    // Land on the queue that needs attention: Pending when there is one, otherwise Active.
+    if (!vendors.some((v) => v.status === 'PENDING') && filter === 'PENDING') document.querySelector('[data-filter="ACTIVE"]').click();
+  } catch (error) {
+    console.error('Vendors load failed:', error);
+    counts.replaceChildren(); list.replaceChildren(el('p', 'error', 'We could not load the vendors. Please refresh and try again.'));
+  }
+}, 'login.html');
+</script><script src="../js/brand-avatar.js"></script><script src="../js/theme.js"></script><script src="../js/track.js"></script></body></html>

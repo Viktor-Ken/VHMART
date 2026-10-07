@@ -10,6 +10,7 @@
   <button type="button" class="button button--primary" data-filter="all">All</button>
   <button type="button" class="button button--quiet" data-filter="customer">Customers</button>
   <button type="button" class="button button--quiet" data-filter="vendor">Vendors</button>
+  <button type="button" class="button button--quiet" data-filter="pending">Pending approval</button>
   <button type="button" class="button button--quiet" data-filter="suspended">Suspended</button>
   <button type="button" class="button button--quiet" data-filter="deleted">Deleted</button>
 </div>
@@ -28,7 +29,7 @@ let filter = 'all', accounts = [], me = null;
 
 function el(tag, className, text) { const node = document.createElement(tag); if (className) node.className = className; if (text != null) node.textContent = text; return node; }
 const when = (value) => (Number(value) ? new Date(Number(value)).toLocaleDateString('en-NG', { dateStyle: 'medium' }) : 'unknown date');
-const stateOf = (account) => (account.deletedAt ? 'deleted' : account.active === false || account.vendorStatus === 'SUSPENDED' ? 'suspended' : 'active');
+const stateOf = (account) => (account.deletedAt ? 'deleted' : account.vendorStatus === 'PENDING' ? 'pending' : account.vendorStatus === 'DECLINED' ? 'declined' : account.active === false || account.vendorStatus === 'SUSPENDED' ? 'suspended' : 'active');
 
 async function log(action, target, detail) {
   try { await update(push(ref(database, 'audit_logs')), { actor: me.uid, action, target, detail: detail || '', timestamp: serverTimestamp() }); } catch (error) { console.warn('Audit log not written:', error); }
@@ -65,7 +66,7 @@ async function setState(account, next) {
 
 function renderCounts() {
   const n = (test) => accounts.filter(test).length;
-  const items = [['Total accounts', accounts.length], ['Customers', n((a) => a.role === 'customer')], ['Vendors', n((a) => a.role === 'vendor')], ['Suspended', n((a) => stateOf(a) === 'suspended')], ['Deleted', n((a) => stateOf(a) === 'deleted')]];
+  const items = [['Total accounts', accounts.length], ['Customers', n((a) => a.role === 'customer')], ['Vendors', n((a) => a.role === 'vendor')], ['Pending approval', n((a) => stateOf(a) === 'pending')], ['Suspended', n((a) => stateOf(a) === 'suspended')], ['Deleted', n((a) => stateOf(a) === 'deleted')]];
   counts.replaceChildren(...items.map(([label, value]) => { const card = el('article', 'category-card'); card.style.backgroundImage = 'linear-gradient(135deg,#176b55,#e76f51)'; card.append(el('h2', null, `${label}: ${value}`)); return card; }));
 }
 
@@ -73,7 +74,7 @@ function matches(account) {
   const state = stateOf(account);
   if (filter === 'customer' && account.role !== 'customer') return false;
   if (filter === 'vendor' && account.role !== 'vendor') return false;
-  if ((filter === 'suspended' || filter === 'deleted') && state !== filter) return false;
+  if ((filter === 'suspended' || filter === 'deleted' || filter === 'pending') && state !== filter) return false;
   const needle = search.value.trim().toLowerCase();
   return !needle || [account.name, account.email, account.businessName, account.phone].some((v) => String(v || '').toLowerCase().includes(needle));
 }
@@ -86,7 +87,7 @@ function renderList() {
     const state = stateOf(account);
     const card = el('article', 'form-panel');
     card.append(el('h2', null, account.role === 'vendor' && account.businessName ? `${account.businessName}` : (account.name || account.email || 'Account')));
-    const bits = [account.role === 'vendor' ? 'Vendor' : 'Customer', state === 'active' ? 'Active' : state === 'suspended' ? 'Suspended' : 'Deleted'];
+    const bits = [account.role === 'vendor' ? 'Vendor' : 'Customer', ({ active: 'Active', pending: 'Pending approval', declined: 'Declined', suspended: 'Suspended', deleted: 'Deleted' })[state]];
     if (account.role === 'vendor' && account.name) bits.push(`Contact: ${account.name}`);
     card.append(el('p', null, bits.join(' · ')));
     if (account.email) card.append(el('p', null, `Email: ${account.email}`));
@@ -106,6 +107,8 @@ function renderList() {
     if (state === 'active') {
       run('Suspend', 'button--quiet', 'suspended', `Suspend ${account.email || 'this account'}? They will be signed out and unable to sign in.`);
       run('Delete', 'button--danger', 'deleted', `Delete ${account.email || 'this account'}? They will be signed out and hidden from the site. You can restore it later.`);
+    } else if (state === 'pending' || state === 'declined') {
+      const link = el('a', 'button button--primary', 'Review in Vendors'); link.href = 'vendors.html'; actions.append(link);
     } else if (state === 'suspended') {
       run('Reinstate', 'button--primary', 'active');
       run('Delete', 'button--danger', 'deleted', `Delete ${account.email || 'this account'}? You can restore it later.`);
