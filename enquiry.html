@@ -70,6 +70,10 @@ import { auth, database } from './js/firebase.js';
 import { get, ref, push, set, serverTimestamp } from 'https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js';
 import { getPublishedProducts } from './js/marketplace.js';
 
+// Start downloading the product snapshot now, in parallel with the vendor lookup,
+// instead of after it. The result is cached by getPublishedProducts().
+getPublishedProducts().catch(() => {});
+
 const SAFE_ID = /^[A-Za-z0-9_-]{1,128}$/;
 const params = new URLSearchParams(location.search);
 const vendorId = (params.get('vendor') || '').trim();

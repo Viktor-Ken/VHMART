@@ -57,6 +57,10 @@ const params = new URLSearchParams(location.search);
 const vendorId = (params.get('id') || '').trim();
 const requestedProductId = (params.get('product') || '').trim();
 
+// Start downloading the product snapshot now, in parallel with the vendor lookup,
+// instead of after it. The result is cached by getPublishedProducts().
+getPublishedProducts().catch(() => {});
+
 const root = document.querySelector('#vendorDetail');
 
 function el(tag, className, text) {
@@ -178,7 +182,7 @@ async function productSection(id, current) {
   // Put the product the customer was looking at first.
   products.sort((a, b) => (current && b.id === current.id) - (current && a.id === current.id) || String(a.name || '').localeCompare(String(b.name || '')));
   const grid = el('div', 'product-grid');
-  products.forEach((product) => grid.append(productCard(product)));
+  products.forEach((product, index) => grid.append(productCard(product, { priority: index < 3 })));
   section.append(grid);
   return section;
 }
