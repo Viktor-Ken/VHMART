@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="css/main.css">
+<!-- seo:start -->
+<title>Make an enquiry | VisuaHealth Market</title>
+<meta name="description" content="Send an enquiry to a VHMART vendor about one of their products.">
+<link rel="canonical" href="https://vhmart.online/enquiry">
+<meta name="robots" content="noindex,nofollow">
+<link rel="preload" href="/fonts/DMSans-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/SpaceGrotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/Visuamall/logo.webp" as="image" type="image/webp">
+<link rel="preload" href="/Visuamall/general/bg%202.jpg" as="image">
+<link rel="preload" href="/Visuamall/general/hero.webp" as="image" type="image/webp">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="VisuaHealth Market">
+<meta property="og:title" content="Make an enquiry | VisuaHealth Market">
+<meta property="og:description" content="Send an enquiry to a VHMART vendor about one of their products.">
+<meta property="og:url" content="https://vhmart.online/enquiry">
+<meta property="og:image" content="https://vhmart.online/Visuamall/general/home-removebg-preview.webp">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Make an enquiry | VisuaHealth Market">
+<meta name="twitter:description" content="Send an enquiry to a VHMART vendor about one of their products.">
+<meta name="twitter:image" content="https://vhmart.online/Visuamall/general/home-removebg-preview.webp">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"VisuaHealth Market","url":"https://vhmart.online/","logo":"https://vhmart.online/Visuamall/general/home-removebg-preview.webp"}</script>
+<!-- seo:end -->
+</head>
+<body>
+<header class="site-header"><nav class="nav" aria-label="Main navigation"><a class="brand" href="index.html">VHMART</a><div class="nav-links"><a href="marketplace.html">Marketplace</a><a href="categories.html">Categories</a><a href="login.html">Sign in</a></div></nav></header>
+<main class="page">
+  <a id="backLink" href="marketplace.html">Back to marketplace</a>
+  <section class="form-panel enquiry-form">
+    <h1>Make an enquiry</h1>
+    <p id="intro">Ask the vendor about a product. VHMART does not process purchases; the vendor replies using the details you give.</p>
+    <p id="state" class="empty">Loading...</p>
+    <div id="gate" class="notice" hidden>
+      <p><strong>Sign in to send an enquiry.</strong> The vendor needs to know who is asking, and we bring you straight back here afterwards.</p>
+      <div class="button-row"><a id="signIn" class="button button--primary" href="login.html">Sign in</a><a id="signUp" class="button button--quiet" href="register.html">Create an account</a></div>
+    </div>
+    <form id="enquiryForm" novalidate hidden>
+      <label for="product">Product you are asking about<select id="product" required><option value="">Choose a product</option></select></label>
+      <label for="name">Your name<input id="name" autocomplete="name" maxlength="100" required></label>
+      <label for="email">Your email<input id="email" type="email" autocomplete="email" maxlength="200" required></label>
+      <label for="phone">Your phone number (optional)<input id="phone" type="tel" autocomplete="tel" maxlength="30"></label>
+      <label for="message">Your enquiry<textarea id="message" rows="6" minlength="10" maxlength="2000" required placeholder="What would you like to know?"></textarea></label>
+      <label class="terms-consent" for="terms"><input id="terms" type="checkbox" required><span>I have read and agree to the <a href="terms-and-conditions.html" target="_blank" rel="noopener noreferrer">Terms of Use</a>.</span></label>
+      <button class="button button--primary" type="submit">Send enquiry</button>
+      <p id="status" role="status"></p>
+    </form>
+    <div id="done" hidden>
+      <p class="vendor-interest">Your enquiry was sent. The vendor will see it in their dashboard and reply using the details you gave.</p>
+      <div class="button-row"><a id="backToVendor" class="button button--quiet" href="marketplace.html">Back to the vendor</a><a class="button button--quiet" href="marketplace.html">Keep browsing</a></div>
+    </div>
+  </section>
+</main>
+<script type="module">
+// Enquiry page.
+//
+// The enquiry is stored under `enquiries` and mirrored to the vendor's own
+// `vendor_enquiries` list, which is what the vendor dashboard reads. The database
+// rules require the enquiry to name a real, published product that belongs to the
+// vendor, so the customer always picks one here.
+//
+// An enquiry needs a signed-in customer (the rules require customerUid), so a
+// visitor who is not signed in is sent to sign in and returned to this exact page.
+
+import { auth, database } from './js/firebase.js';
+import { get, ref, push, set, serverTimestamp } from 'https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js';
+import { getPublishedProducts } from './js/marketplace.js';
+
+const SAFE_ID = /^[A-Za-z0-9_-]{1,128}$/;
+const params = new URLSearchParams(location.search);
+const vendorId = (params.get('vendor') || '').trim();
+const requestedProduct = (params.get('product') || '').trim();
+
+const $ = (selector) => document.querySelector(selector);
+const stateEl = $('#state'), gate = $('#gate'), form = $('#enquiryForm'), done = $('#done'), status = $('#status');
+const productSelect = $('#product');
+
+function showState(message, isError = false) {
+  stateEl.hidden = false;
+  stateEl.className = isError ? 'error' : 'empty';
+  stateEl.textContent = message;
+  gate.hidden = true; form.hidden = true; done.hidden = true;
+}
+
+// Where sign-in should send the customer back to. The ".html" form works on every
+// host; the static host redirects it to the clean URL.
+const returnTo = encodeURIComponent(`enquiry.html${location.search}`);
+$('#signIn').href = `login.html?next=${returnTo}`;
+$('#signUp').href = `register.html?next=${returnTo}`;
+
+// Resolves once Firebase has restored any saved sign-in; null for a signed-out visitor.
+const firstUser = auth.authStateReady().then(() => auth.currentUser);
+
+async function start() {
+  if (!vendorId || !SAFE_ID.test(vendorId)) { showState('This enquiry link is not valid.', true); return; }
+
+  let vendor = null;
+  try {
+    vendor = (await get(ref(database, `vendors/${vendorId}`))).val();
+  } catch (error) {
+    console.error('Vendor load failed:', error);
+    showState('We could not load this vendor right now. Please try again.', true);
+    return;
+  }
+  if (!vendor || vendor.status !== 'ACTIVE') { showState('This vendor is not currently available.'); return; }
+
+  const vendorName = vendor.businessName || 'this vendor';
+  $('#intro').textContent = `Ask ${vendorName} about a product. VHMART does not process purchases; the vendor replies using the details you give.`;
+  $('#backLink').textContent = `Back to ${vendorName}`;
+  $('#backLink').href = `vendor-profile.html?id=${encodeURIComponent(vendorId)}${requestedProduct && SAFE_ID.test(requestedProduct) ? `&product=${encodeURIComponent(requestedProduct)}` : ''}`;
+  $('#backToVendor').href = $('#backLink').href;
+
+  let products = [];
+  try {
+    products = (await getPublishedProducts()).filter((product) => product.vendorId === vendorId);
+  } catch (error) {
+    console.error('Products failed to load:', error);
+    showState('We could not load this vendor’s products right now. Please try again.', true);
+    return;
+  }
+  if (!products.length) {
+    showState('This vendor has no published products to ask about yet. You can still reach them from their profile using Contact vendor.');
+    return;
+  }
+  products.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+  const byId = new Map(products.map((product) => [product.id, product]));
+  for (const product of products) {
+    const option = document.createElement('option');
+    option.value = product.id;
+    option.textContent = product.name || 'Unnamed product';
+    productSelect.append(option);
+  }
+  if (byId.has(requestedProduct)) productSelect.value = requestedProduct;
+
+  const user = await firstUser;
+  if (!user) {
+    stateEl.hidden = true;
+    gate.hidden = false;
+    return;
+  }
+
+  $('#name').value = (user.displayName || '').trim();
+  $('#email').value = user.email || '';
+  stateEl.hidden = true;
+  form.hidden = false;
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    status.className = '';
+    const button = form.querySelector('button[type="submit"]');
+    const product = byId.get(productSelect.value);
+    const name = $('#name').value.trim();
+    const email = $('#email').value.trim();
+    const phone = $('#phone').value.trim();
+    const message = $('#message').value.trim();
+
+    const problem = !product ? 'Choose the product you are asking about.'
+      : !name ? 'Enter your name.'
+      : !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? 'Enter a valid email address so the vendor can reply.'
+      : message.length < 10 ? 'Please write at least a short sentence about what you would like to know.'
+      : !$('#terms').checked ? 'Please tick the box to agree to the Terms of Use.'
+      : '';
+    if (problem) { status.className = 'error'; status.textContent = problem; return; }
+
+    button.disabled = true;
+    status.textContent = 'Sending your enquiry...';
+    try {
+      const enquiryRef = push(ref(database, 'enquiries'));
+      const payload = {
+        productId: product.id,
+        productName: String(product.name || '').slice(0, 160),
+        vendorId,
+        vendorName: String(vendorName).slice(0, 160),
+        customerUid: user.uid,
+        customerName: name.slice(0, 100),
+        customerEmail: email.slice(0, 200),
+        customerPhone: phone.slice(0, 30),
+        message: message.slice(0, 2000),
+        status: 'NEW',
+        termsAcceptedAt: serverTimestamp(),
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      };
+      await set(enquiryRef, payload);
+      // The vendor dashboard also reads this per-vendor list. The enquiry above is
+      // the record of truth, so a failure here must not make the customer think
+      // their enquiry was lost; the dashboard falls back to the main list.
+      try {
+        await set(ref(database, `vendor_enquiries/${vendorId}/${enquiryRef.key}`), payload);
+      } catch (mirrorError) {
+        console.warn('Vendor inbox copy failed (non-fatal):', mirrorError);
+      }
+      form.hidden = true;
+      done.hidden = false;
+      form.reset();
+    } catch (error) {
+      console.error('Enquiry failed:', error);
+      status.className = 'error';
+      status.textContent = 'We could not send your enquiry. Please check your details and try again.';
+      button.disabled = false;
+    }
+  });
+}
+
+start().catch((error) => { console.error(error); showState('Something went wrong loading this page. Please refresh and try again.', true); });
+</script>
+<script src="js/brand-avatar.js"></script>
+<script src="js/theme.js"></script>
+</body>
+</html>

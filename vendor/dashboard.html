@@ -35,8 +35,7 @@
 <script type="module">
 import { requireUser, logout } from '../js/auth.js';
 import { ownedProducts, formatPrice } from '../js/products.js';
-import { database } from '../js/firebase.js';
-import { get, ref, query, orderByChild, equalTo } from 'https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js';
+import { loadVendorEnquiries } from '../js/enquiries.js';
 
 logout(document.querySelector('#logout'));
 
@@ -125,13 +124,7 @@ requireUser(async (user, profile) => {
   if (profile.role !== 'vendor') { location.href = '../index.html'; return; }
   try {
     const products = await ownedProducts(user.uid);
-    let enquirySnapshot = await get(ref(database, `vendor_enquiries/${user.uid}`));
-    if (!enquirySnapshot.exists()) {
-      enquirySnapshot = await get(query(ref(database, 'enquiries'), orderByChild('vendorId'), equalTo(user.uid)));
-    }
-    const enquiries = enquirySnapshot.exists()
-      ? Object.entries(enquirySnapshot.val()).map(([id, item]) => ({ id, ...item })).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
-      : [];
+    const enquiries = await loadVendorEnquiries(user.uid);
     renderStats(products, enquiries);
     renderProducts(products);
     renderEnquiries(enquiries);

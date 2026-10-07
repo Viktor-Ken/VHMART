@@ -28,16 +28,16 @@ async function resolves(route) {
 
 const PUBLIC_PAGES = [
   'index.html', 'marketplace.html', 'categories.html', 'contact.html',
-  'vendor.html', 'random.html', 'login.html', 'register.html',
+  'vendor.html', 'vendor-profile.html', 'enquiry.html', 'random.html', 'login.html', 'register.html',
   'terms-and-conditions.html', 'vendor/dashboard.html',
   'vendor/products.html', 'vendor/add-product.html', 'vendor/edit-product.html',
   'vendor/enquiries.html', 'vendor/profile.html'
 ];
 
 // These pages have no static <h1> to check: random.html picks a random product,
-// and vendor.html needs a vendor id in the query string before it knows who the
-// heading should name.
-const NO_STATIC_H1 = new Set(['random.html', 'vendor.html']);
+// and vendor.html / vendor-profile.html need a vendor id in the query string before
+// they know who the heading should name.
+const NO_STATIC_H1 = new Set(['random.html', 'vendor.html', 'vendor-profile.html']);
 
 const SITE_ORIGIN = 'https://vhmart.online';
 

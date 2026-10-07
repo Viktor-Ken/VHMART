@@ -1,7 +1,7 @@
 (function () {
     const depth = (location.pathname.match(/\//g) || []).length - 1;
     const base = depth > 0 ? '../'.repeat(depth) : '';
-    const logo = base + 'Visuamall/logo.jpeg';
+    const logo = base + 'Visuamall/logo.webp';
     const avatar = document.createElement('button');
     avatar.type = 'button';
     avatar.id = 'brandAvatar';

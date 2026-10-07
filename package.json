@@ -3,9 +3,9 @@
     "private":  true,
     "type":  "module",
     "scripts":  {
-                    "check":  "node --check js/firebase.js \u0026\u0026 node --check js/auth.js \u0026\u0026 node --check js/marketplace.js \u0026\u0026 node --check js/products.js \u0026\u0026 node --check js/vendor-product-form.js \u0026\u0026 node --check js/admin.js \u0026\u0026 node --check scripts/migrate-data.js \u0026\u0026 node --check scripts/validate-migration.js \u0026\u0026 node --check scripts/migration-report.js \u0026\u0026 node --check scripts/set-role.js",
+                    "check":  "node --check js/firebase.js \u0026\u0026 node --check js/auth.js \u0026\u0026 node --check js/marketplace.js \u0026\u0026 node --check js/contact-links.js \u0026\u0026 node --check js/contact-vendor.js \u0026\u0026 node --check js/enquiries.js \u0026\u0026 node --check js/products.js \u0026\u0026 node --check js/vendor-product-form.js \u0026\u0026 node --check js/admin.js \u0026\u0026 node --check scripts/migrate-data.js \u0026\u0026 node --check scripts/validate-migration.js \u0026\u0026 node --check scripts/migration-report.js \u0026\u0026 node --check scripts/set-role.js",
                     "emulators":  "firebase emulators:start",
-                    "test":  "node --test tests/release.test.js",
+                    "test":  "node --test tests/release.test.js tests/contact.test.js",
                     "test:rules":  "firebase emulators:exec --only database --project demo-vhmart \"node --test tests/rules.test.js\"",
                     "test:all":  "npm run test \u0026\u0026 npm run test:rules",
                     "migration:dry-run":  "node scripts/migrate-data.js --dry-run --input export.json",
