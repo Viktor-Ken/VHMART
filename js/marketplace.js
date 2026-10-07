@@ -80,14 +80,34 @@ export function text(value, fallback = "") {
     return typeof value === "string" && value.trim() ? value.trim() : fallback;
 }
 
+// Plain string formatting, not toLocaleString: building an Intl formatter is one of the
+// slowest things the product list does (it showed up as the top application function
+// in a CPU profile of the home page), and it ran once per card.
 export function formatPrice(price) {
     if (typeof price !== "number" || !isFinite(price)) return null;
-    return `₦${price.toLocaleString("en-NG", { maximumFractionDigits: 2 })}`;
+    const [whole, fraction] = (Math.round(price * 100) / 100).toFixed(2).split(".");
+    const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    return `₦${grouped}${fraction === "00" ? "" : `.${fraction}`}`;
 }
 
-export function productCard(product) {
+// Small card thumbnail for a product image, if one was generated (npm run thumbs).
+function thumbFor(src) {
+    const match = /^(.*\/)(p\d+--[^/]+)\.(?:jpe?g|png|webp|avif)$/i.exec(src || "");
+    return match ? `${match[1]}thumb/${match[2]}.webp` : null;
+}
+
+// `priority` marks cards that are on screen straight away: their image loads at once
+// and first. Every other card keeps lazy loading. Lazy-loading the top cards made the
+// biggest image on the page the last thing to arrive.
+export function productCard(product, { priority = false } = {}) {
     const article = document.createElement("article"); article.className = "product-card";
-    const image = document.createElement("img"); image.src = text(product.image, "Visuamall/bgg3.avif"); image.alt = text(product.name, "Marketplace product"); image.loading = "lazy";
+    const image = document.createElement("img");
+    const full = text(product.image, "Visuamall/bgg3.avif");
+    const thumb = thumbFor(full);
+    image.alt = text(product.name, "Marketplace product"); image.width = 480; image.height = 360; image.decoding = "async";
+    if (priority) { image.loading = "eager"; image.fetchPriority = "high"; } else image.loading = "lazy";
+    if (thumb) image.addEventListener("error", () => { image.src = full; }, { once: true });
+    image.src = thumb || full;
     const body = document.createElement("div"); body.className = "product-card__body";
     const title = document.createElement("h3"); title.textContent = text(product.name, "Unnamed product");
     const price = document.createElement("p"); price.className = "product-price"; price.textContent = formatPrice(product.price) || "Contact vendor for price";

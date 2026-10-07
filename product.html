@@ -7,9 +7,17 @@
 // A customer who likes a product clicks "I'm interested" and goes to the vendor's
 // profile, where they choose to contact the vendor or make an enquiry. Contacting a
 // vendor needs the terms accepted first, and that happens on the profile page.
-import { database } from './js/firebase.js';
-import { get, ref } from 'https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js';
 import { getProductById, formatPrice, text } from './js/marketplace.js';
+
+// The vendor's name is a nicety, so the Firebase SDK (several files) is loaded only
+// after the product itself is on screen instead of before it.
+async function loadVendor(vendorId) {
+  const [{ database }, { get, ref }] = await Promise.all([
+    import('./js/firebase.js'),
+    import('https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js')
+  ]);
+  return (await get(ref(database, `vendors/${vendorId}`))).val();
+}
 
 const root = document.querySelector('#detail');
 const id = new URLSearchParams(location.search).get('id');
@@ -29,22 +37,18 @@ if (!id || !/^[A-Za-z0-9_-]{1,120}$/.test(id)) {
     if (!product) throw new Error('Product unavailable');
     document.title = `${product.name || 'Product'} | VHMART`;
 
-    // The vendor's name is a nicety; the page still works if it cannot be read.
-    let vendor = null;
-    if (product.vendorId) {
-      try { vendor = (await get(ref(database, `vendors/${product.vendorId}`))).val(); } catch (error) { console.warn('Vendor lookup failed:', error); }
-    }
-
     const image = el('img');
     image.src = text(product.image, 'Visuamall/bgg3.avif');
+    image.fetchPriority = 'high';
     image.alt = text(product.name, 'Product image');
 
     const content = el('div');
-    const meta = [text(product.categoryId, 'general').replaceAll('-', ' '), text(product.availability, 'Contact vendor').replaceAll('_', ' '), vendor ? text(vendor.businessName, 'VHMART vendor') : 'By a VHMART vendor'].join(' | ');
+    const metaParts = [text(product.categoryId, 'general').replaceAll('-', ' '), text(product.availability, 'Contact vendor').replaceAll('_', ' ')];
+    const metaLine = el('p', null, [...metaParts, 'By a VHMART vendor'].join(' | '));
     content.append(
       el('h1', null, text(product.name, 'Product')),
       el('p', 'product-price', formatPrice(product.price) || 'Contact vendor for price'),
-      el('p', null, meta),
+      metaLine,
       el('p', null, text(product.description, 'Ask the vendor for more information about this product.'))
     );
 
@@ -56,6 +60,12 @@ if (!id || !/^[A-Za-z0-9_-]{1,120}$/.test(id)) {
     if (product.vendorId) content.append(el('p', 'form-note', 'On the vendor’s page you can contact them directly or send an enquiry.'));
 
     root.replaceChildren(image, content);
+
+    if (product.vendorId) {
+      loadVendor(product.vendorId).then((vendor) => {
+        if (vendor && vendor.businessName) metaLine.textContent = [...metaParts, text(vendor.businessName, 'VHMART vendor')].join(' | ');
+      }).catch((error) => console.warn('Vendor lookup failed:', error));
+    }
   } catch (error) {
     root.textContent = 'This product is unavailable or could not be loaded.';
     console.error(error);
