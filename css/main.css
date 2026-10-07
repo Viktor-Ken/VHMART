@@ -1,4 +1,8 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Space+Grotesk:wght@500;700&display=swap');
+/* Self-hosted variable fonts (latin subset). Every page preloads these two files,
+   so they must be the ones the stylesheet actually uses. DM Sans and Space Grotesk
+   are both SIL Open Font License, which permits redistribution. */
+@font-face { font-family: 'DM Sans'; font-style: normal; font-weight: 400 700; font-display: swap; src: url('/fonts/DMSans-latin.woff2') format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+2000-206F, U+2122, U+2191, U+2193, U+2212, U+2215; }
+@font-face { font-family: 'Space Grotesk'; font-style: normal; font-weight: 500 700; font-display: swap; src: url('/fonts/SpaceGrotesk-latin.woff2') format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+2000-206F, U+2122, U+2191, U+2193, U+2212, U+2215; }
 :root { --ink: #182426; --muted: #607174; --paper: #f6f8f4; --line: #dce5df; --green: #176b55; --coral: #e76f51; --yellow: #f5c451; }
 :root[data-theme="dark"] { --ink: #e8f0ee; --muted: #a7b7b2; --paper: #101614; --line: #24312d; --green: #3fbf98; --coral: #f08a68; --yellow: #f5c451; }
 * { box-sizing: border-box; } body { margin: 0; color: var(--ink); background: var(--paper); font-family: 'DM Sans', sans-serif; } a { color: inherit; } button, input, select, textarea { font: inherit; }
@@ -31,7 +35,7 @@ button, .button { border: 0; border-radius: 6px; cursor: pointer; display: inlin
 .menu-trigger { display: none; width: 38px; min-height: 38px; padding: 8px; border-radius: 50%; background: transparent; flex-direction: column; gap: 4px; }
 .menu-trigger span { width: 20px; height: 2px; background: #850fa8; }
 .live-main { max-width: 1220px; margin: auto; padding: 12px 24px 64px; }
-.arrival-hero { min-height: 360px; display: flex; align-items: center; justify-content: space-between; overflow: hidden; padding: 28px 7%; border-radius: 10px; background: url('../Visuamall/general/hero.jpeg') center/cover; }
+.arrival-hero { min-height: 360px; display: flex; align-items: center; justify-content: space-between; overflow: hidden; padding: 28px 7%; border-radius: 10px; background: url('../Visuamall/general/hero.webp') center/cover; }
 .arrival-copy > span { font-weight: 800; font-size: .95rem; } .arrival-copy h1 { margin: 10px 0 25px; display: grid; font: 900 clamp(3rem, 7vw, 5.8rem)/.88 'Space Grotesk', sans-serif; }
 .live-explore { display: inline-block; padding: 12px 30px; color: #111; background: #e5ddd1; border-radius: 14px; font-weight: 800; text-decoration: none; }
 .arrival-hero > img { width: min(51%, 560px); height: 360px; object-fit: contain; align-self: end; }
@@ -59,3 +63,53 @@ button, .button { border: 0; border-radius: 6px; cursor: pointer; display: inlin
 [data-theme="dark"] .avatar-popup { background: #131b18; }
 @media (max-width: 800px) { .live-header { padding: 12px 16px; } .menu-trigger { display: inline-flex; } .live-links { display: none; } .live-main { padding: 8px 16px 48px; } .arrival-hero { min-height: 380px; padding: 28px 22px; } .arrival-hero > img { width: 57%; } .spotlight-grid, .picks-grid { grid-template-columns: repeat(2, 1fr); } .benefits { grid-template-columns: 1fr; gap: 18px; } .live-footer { flex-direction: column; padding: 30px 24px; } .mobile-drawer { display: flex; position: fixed; inset: 0 auto 0 0; width: min(320px, 82vw); padding: 24px; z-index: 30; transform: translateX(-105%); transition: transform .25s ease; flex-direction: column; background: url('../Visuamall/general/menu bg.avif') center/cover; } .mobile-drawer.is-open { transform: translateX(0); } .mobile-drawer a { color: white; font-weight: 800; text-decoration: none; padding: 15px 0; } .drawer-close { align-self: end; color: white; background: transparent; font-size: 2rem; min-height: 36px; padding: 0 8px; } .drawer-overlay { display: block; position: fixed; inset: 0; z-index: 20; opacity: 0; visibility: hidden; background: rgba(0,0,0,.45); transition: opacity .25s ease; } .drawer-overlay.is-open { opacity: 1; visibility: visible; } }
 @media (max-width: 480px) { .arrival-hero { min-height: 430px; align-items: start; } .arrival-copy { z-index: 1; } .arrival-hero > img { position: absolute; width: 86%; right: -12%; margin-top: 165px; } .spotlight-grid, .picks-grid { grid-template-columns: 1fr 1fr; gap: 10px; } .spotlight-card { min-height: 175px; padding: 10px; } .spotlight-card img { height: 110px; } }
+/* Password field with a show/hide (eye) control. The wrapper is positioned so the
+   button can sit over the input's right edge without disturbing the label's grid
+   layout. justify-self is overridden because .form-panel button { justify-self: start }
+   would otherwise pull the control out of position. */
+.password-field { position: relative; display: block; }
+.password-field input { padding-right: 56px; }
+.password-toggle { position: absolute; top: 50%; right: 2px; transform: translateY(-50%); justify-self: end; width: 44px; min-height: 44px; height: 44px; padding: 0; color: var(--muted); background: transparent; }
+.password-toggle:hover { color: var(--green); background: #e5efe9; }
+.password-toggle:focus-visible { outline: 2px solid var(--green); outline-offset: -2px; }
+.password-toggle svg { display: block; }
+[data-theme="dark"] .password-toggle:hover { color: var(--green); background: #1b2724; }
+
+/* Vendor profile: the page a customer reaches from "I'm interested". */
+.vendor-profile { max-width: 760px; margin: 28px auto 0; }
+.vendor-profile .form-panel { max-width: none; margin: 0 0 24px; }
+.vendor-profile h1 { margin: 0 0 6px; font: 700 clamp(1.8rem, 5vw, 2.6rem)/1.1 'Space Grotesk', sans-serif; }
+.vendor-meta { margin: 0 0 12px; color: var(--muted); text-transform: capitalize; }
+.vendor-interest { margin: 14px 0; padding: 10px 14px; border-left: 3px solid var(--green); background: #e5efe9; border-radius: 4px; font-weight: 700; }
+[data-theme="dark"] .vendor-interest { background: #1b2724; }
+.vendor-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+.vendor-actions .button { flex: 1 1 200px; }
+.vendor-products { margin-top: 28px; }
+.vendor-products .product-grid { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+
+/* Contact panel: terms first, then the channels. The channels stay disabled until
+   the terms box is ticked. */
+.contact-panel.is-open { padding: 18px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
+.contact-panel h2 { font-size: 1.35rem; margin: 0 0 6px; }
+.contact-panel__hint { margin: 0 0 12px; color: var(--muted); }
+.terms-box { max-height: 240px; overflow-y: auto; padding: 12px 14px; margin: 10px 0; border: 1px solid var(--line); border-radius: 6px; background: #fff; font-size: .92rem; line-height: 1.55; }
+.terms-box h1 { display: none; }
+.terms-box h2 { font-size: 1.05rem; margin: 16px 0 6px; }
+.terms-box p { margin: 0 0 10px; white-space: pre-line; }
+[data-theme="dark"] .terms-box { background: #131b18; }
+.contact-agree { display: flex; gap: 10px; align-items: flex-start; font-weight: 700; margin: 12px 0; }
+.contact-agree input { width: auto; margin-top: 3px; flex: none; }
+.contact-options { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-top: 10px; }
+.contact-option { min-height: 46px; text-align: center; }
+.contact-option[aria-disabled="true"] { opacity: .5; cursor: not-allowed; }
+.contact-option__value { display: block; font-size: .78rem; font-weight: 400; word-break: break-all; }
+.contact-option { flex-direction: column; gap: 2px; padding: 8px 12px; }
+
+/* Enquiry form */
+.enquiry-form .terms-consent, .terms-consent { display: flex; gap: 10px; align-items: flex-start; font-weight: 700; margin: 4px 0; }
+.terms-consent input { width: auto; margin-top: 3px; flex: none; }
+.form-note { margin: 0; color: var(--muted); font-size: .92rem; }
+.notice { border-left: 3px solid var(--coral); background: #fdf1ee; padding: 12px 14px; margin: 12px 0; }
+.notice strong { color: var(--coral); }
+[data-theme="dark"] .notice { background: #2a1d19; }
+.contact-steps { padding-left: 1.2em; line-height: 1.7; }

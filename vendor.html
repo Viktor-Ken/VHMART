@@ -1,8 +1,8 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="css/main.css">
 <!-- seo:start -->
-<title>Sell on VHMART | Become a vendor</title>
-<meta name="description" content="List your health, wellness or medical products on VHMART. Apply to become a vendor and reach customers looking for your products.">
+<title>Vendor | VisuaHealth Market</title>
+<meta name="description" content="Opens a vendor profile on VHMART.">
 <link rel="canonical" href="https://vhmart.online/vendor">
 <meta name="robots" content="noindex,nofollow">
 <link rel="preload" href="/fonts/DMSans-latin.woff2" as="font" type="font/woff2" crossorigin>
@@ -12,21 +12,25 @@
 <link rel="preload" href="/Visuamall/general/hero.webp" as="image" type="image/webp">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="VisuaHealth Market">
-<meta property="og:title" content="Sell on VHMART | Become a vendor">
-<meta property="og:description" content="List your health, wellness or medical products on VHMART. Apply to become a vendor and reach customers looking for your products.">
+<meta property="og:title" content="Vendor | VisuaHealth Market">
+<meta property="og:description" content="Opens a vendor profile on VHMART.">
 <meta property="og:url" content="https://vhmart.online/vendor">
 <meta property="og:image" content="https://vhmart.online/Visuamall/general/home-removebg-preview.webp">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Sell on VHMART | Become a vendor">
-<meta name="twitter:description" content="List your health, wellness or medical products on VHMART. Apply to become a vendor and reach customers looking for your products.">
+<meta name="twitter:title" content="Vendor | VisuaHealth Market">
+<meta name="twitter:description" content="Opens a vendor profile on VHMART.">
 <meta name="twitter:image" content="https://vhmart.online/Visuamall/general/home-removebg-preview.webp">
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"VisuaHealth Market","url":"https://vhmart.online/","logo":"https://vhmart.online/Visuamall/general/home-removebg-preview.webp"}</script>
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://vhmart.online/"},{"@type":"ListItem","position":2,"name":"vendor","item":"https://vhmart.online/vendor"}]}</script>
 <!-- seo:end -->
 </head>
-<body><header class="site-header"><nav class="nav" aria-label="Main navigation"><a class="brand" href="index.html">VHMART</a><div class="nav-links"><a href="marketplace.html">Marketplace</a><a href="login.html">Sign in</a></div></nav></header><main class="page"><a href="marketplace.html">Back to marketplace</a><div id="vendor" class="detail"><p class="empty">Loading vendor...</p></div></main>
-<script type="module">
-import { database } from './js/firebase.js'; import { get, ref, query, orderByChild, equalTo } from 'https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js';
-const root = document.querySelector('#vendor'); const id = new URLSearchParams(location.search).get('id');
-if (!id || !/^[A-Za-z0-9_-]{1,120}$/.test(id)) root.textContent = 'This vendor link is not valid.'; else { try { const [vendorSnap, productSnap] = await Promise.all([get(ref(database, `vendors/${id}`)), get(query(ref(database, 'products'), orderByChild('status'), equalTo('PUBLISHED')))]); const vendor = vendorSnap.val(); if (!vendor || vendor.status !== 'ACTIVE') throw new Error('Vendor unavailable'); root.replaceChildren(); const title = document.createElement('h1'); title.textContent = vendor.businessName || 'VHMART vendor'; const description = document.createElement('p'); description.textContent = vendor.description || 'A VHMART marketplace vendor.'; const products = productSnap.exists() ? Object.entries(productSnap.val()).map(([productId, product]) => ({ productId, ...product })).filter((product) => product.vendorId === id && product.status === 'PUBLISHED') : []; const heading = document.createElement('h2'); heading.textContent = 'Products'; const grid = document.createElement('div'); grid.className = 'product-grid'; if (!products.length) { const empty = document.createElement('p'); empty.className = 'empty'; empty.textContent = 'This vendor has no products yet.'; grid.append(empty); } else products.forEach((product) => { const item = document.createElement('article'); item.className = 'form-panel'; const name = document.createElement('h3'); name.textContent = product.name || 'View product'; const price = document.createElement('p'); price.className = 'product-price'; price.textContent = (typeof product.price === 'number' && isFinite(product.price)) ? `₦${product.price.toLocaleString('en-NG', { maximumFractionDigits: 2 })}` : 'Contact vendor for price'; const link = document.createElement('a'); link.className = 'button button--quiet'; link.href = `product.html?id=${encodeURIComponent(product.productId)}`; link.textContent = 'View product'; item.append(name, price, link); grid.append(item); }); root.append(title, description, heading, grid); } catch (error) { root.textContent = 'This vendor is unavailable or could not be loaded.'; console.error(error); } }
-</script><script src="js/brand-avatar.js"></script><script src="js/theme.js"></script></body></html>
+<body><main class="page"><p id="redirect" class="empty">Opening the vendor page...</p><noscript><p><a href="marketplace.html">Browse the marketplace</a></p></noscript></main>
+<script>
+// Vendor pages now live at vendor-profile.html. This page only forwards old links, keeping the vendor id.
+(function () {
+  var query = location.search || '';
+  if (/[?&]id=/.test(query)) { location.replace('vendor-profile.html' + query); return; }
+  document.getElementById('redirect').innerHTML = 'This vendor link is not valid. <a href="marketplace.html">Browse the marketplace</a>.';
+})();
+</script>
+</body>
+</html>

@@ -48,18 +48,27 @@ const PAGES = {
   },
   'contact.html': {
     route: '/contact',
-    title: `Contact VHMART | Send an enquiry`,
-    description: 'Send an enquiry to a VHMART vendor about a product. Get answers on availability, pricing and delivery before you buy.',
+    title: `How to contact a vendor | ${SITE_NAME}`,
+    description: 'Find a product on VHMART, open the vendor profile, then contact the vendor directly or send an enquiry about the product.',
     breadcrumbs: ['/', '/contact']
   },
+  // Old vendor links land here and are forwarded to /vendor-profile.
   'vendor.html': {
     route: '/vendor',
-    title: `Sell on VHMART | Become a vendor`,
-    description: 'List your health, wellness or medical products on VHMART. Apply to become a vendor and reach customers looking for your products.',
-    breadcrumbs: ['/', '/vendor'],
-    // This page renders one vendor's storefront from ?id=, which build-seo.js
-    // cannot enumerate. Index the seller-facing page only.
+    title: `Vendor | ${SITE_NAME}`,
+    description: 'Opens a vendor profile on VHMART.',
     noindex: true
+  },
+  // Dynamic pages: they render one vendor from ?id=, which the sitemap cannot enumerate.
+  'vendor-profile.html': {
+    route: '/vendor-profile', noindex: true,
+    title: `Vendor profile | ${SITE_NAME}`,
+    description: 'A VHMART vendor profile: products, contact options and enquiries.'
+  },
+  'enquiry.html': {
+    route: '/enquiry', noindex: true,
+    title: `Make an enquiry | ${SITE_NAME}`,
+    description: 'Send an enquiry to a VHMART vendor about one of their products.'
   },
   'random.html': {
     route: '/random',
@@ -86,29 +95,6 @@ const PAGES = {
     title: `Create an account | ${SITE_NAME}`,
     description: 'Create a VHMART account to save your details, send enquiries and list products as a vendor.',
     noindex: true
-  },
-  // Signed-in pages. noindex, because a result page cannot show anything useful
-  // to someone who is not already signed in, and the content is account data.
-  // A short description is still written so the snippet is never a bare URL.
-  'account.html': {
-    route: '/account', noindex: true,
-    title: `My account | ${SITE_NAME}`,
-    description: 'Manage your VHMART profile, products and enquiries.'
-  },
-  'account-deleted.html': {
-    route: '/account-deleted', noindex: true,
-    title: `Account unavailable | ${SITE_NAME}`,
-    description: 'This VHMART account is unavailable.'
-  },
-  'vendor/pending.html': {
-    route: '/vendor/pending', noindex: true,
-    title: `Application status | ${SITE_NAME}`,
-    description: 'The status of your VHMART vendor application.'
-  },
-  'vendor/deleted.html': {
-    route: '/vendor/deleted', noindex: true,
-    title: `Account unavailable | ${SITE_NAME}`,
-    description: 'This VHMART vendor account is unavailable.'
   },
   'vendor/dashboard.html': {
     route: '/vendor/dashboard', noindex: true,

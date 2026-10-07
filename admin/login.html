@@ -17,7 +17,7 @@
           <input id="email" type="email" value="admin@vhmart.com" autocomplete="username" required>
         </label>
         <label for="password">Password
-          <input id="password" type="password" autocomplete="current-password" required>
+          <span class="password-field"><input id="password" type="password" autocomplete="current-password" required><button class="password-toggle" type="button" data-password-toggle="password" data-password-label-hidden="Hide password" aria-label="Show password" aria-pressed="false"></button></span>
         </label>
         <button class="button button--primary" type="submit">Sign in</button>
         <p id="message" role="status"></p>
@@ -35,7 +35,7 @@
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
       const email = form.email.value.trim().toLowerCase();
-      const button = form.querySelector('button');
+      const button = form.querySelector('button[type="submit"]');
       if (email !== ADMIN_EMAIL) {
         message.textContent = 'Use the dedicated administrator email.';
         return;
@@ -52,6 +52,6 @@
       }
     });
   </script>
-<script src="../js/brand-avatar.js"></script><script src="../js/theme.js"></script>
+<script src="../js/password-toggle.js"></script><script src="../js/brand-avatar.js"></script><script src="../js/theme.js"></script>
 </body>
 </html>
