@@ -246,6 +246,7 @@ ${imageUrl ? `  <img src="/${escapeXml(imageUrl)}" alt="${escapeXml(title)}" wid
 </main>
 <footer class="live-footer"><div><strong>${escapeXml(SITE_NAME)}</strong><p>Discover products. View vendors. Send an enquiry.</p></div><div><h2>Additional Links</h2><a href="/">Home</a><a href="/categories">Categories</a><a href="/contact">Contact</a><a href="/terms-and-conditions">Terms of Use</a></div></footer>
 <script src="/js/brand-avatar.js"></script>
+<script src="/js/track.js"></script>
 <script src="/js/theme.js"></script>
 </body>
 </html>

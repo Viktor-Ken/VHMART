@@ -1,6 +1,7 @@
 import { requireUser, logout } from './auth.js';
 import { database } from './firebase.js';
 import { get, ref, update, push, serverTimestamp } from 'https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js';
+import { recentTraffic } from './analytics.js';
 
 export function startAdmin() {
   logout(document.querySelector('#logout'));
@@ -8,12 +9,16 @@ export function startAdmin() {
   requireUser(async (user, profile) => {
     if (profile.role !== 'admin') { location.href = '../index.html'; return; }
     try {
-      const [vendors, products, enquiries, reports] = await Promise.all([
+      const [vendors, products, enquiries, reports, traffic] = await Promise.all([
         get(ref(database, 'vendors')),
         get(ref(database, 'products')),
         get(ref(database, 'enquiries')),
-        get(ref(database, 'reports'))
+        get(ref(database, 'reports')),
+        // Traffic is a nicety on this page: if it cannot be read the rest still loads.
+        recentTraffic(7).catch((error) => { console.warn('Traffic unavailable:', error); return []; })
       ]);
+      const totalViews = traffic.reduce((sum, row) => sum + row.views, 0);
+      const totalVisitors = traffic.reduce((sum, row) => sum + row.visitors, 0);
       const groups = [
         ['Total vendors', vendors.exists() ? Object.keys(vendors.val()).length : 0],
         ['Active vendors', count(vendors, 'ACTIVE')],
@@ -23,7 +28,9 @@ export function startAdmin() {
         ['Archived products', count(products, 'ARCHIVED')],
         ['Total enquiries', enquiries.exists() ? Object.keys(enquiries.val()).length : 0],
         ['Open enquiries', count(enquiries, 'NEW')],
-        ['Reports', reports.exists() ? Object.keys(reports.val()).length : 0]
+        ['Reports', reports.exists() ? Object.keys(reports.val()).length : 0],
+        ['Visitors (7 days)', totalVisitors],
+        ['Page views (7 days)', totalViews]
       ];
       root.replaceChildren();
       groups.forEach(([label, value]) => {

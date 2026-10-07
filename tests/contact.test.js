@@ -141,7 +141,7 @@ test('every product page leads to the vendor profile, not straight to contact', 
     const source = read(`product/${name}`);
     assert.match(source, /href="\/vendor-profile\?id=[A-Za-z0-9_-]+&amp;product=/, `product/${name} does not link to the vendor profile`);
     assert.doesNotMatch(source, /\/enquiry\?/, `product/${name} skips the vendor profile`);
-    assert.doesNotMatch(source, /track\.js/, `product/${name} loads a script that does not exist`);
+    assert.match(source, /\/js\/track\.js/, `product/${name} is not counted in analytics`);
   }
 });
 
@@ -202,4 +202,21 @@ test('every link and image in a page points at a file that exists', () => {
     }
   }
   assert.deepEqual(problems, []);
+});
+
+// ---------------------------------------------------------------------------
+// Admin analytics
+// ---------------------------------------------------------------------------
+
+test('analytics is recorded on public pages and readable by the admin', () => {
+  for (const file of ['js/track.js', 'js/analytics.js', 'admin/analytics.html']) assert.equal(exists(file), true, `${file} is missing`);
+  const untracked = new Set(['admin/login.html', 'admin/categories.html', 'vendor.html']);
+  for (const file of htmlFiles()) {
+    if (untracked.has(file)) continue;
+    const prefix = file.includes('/') ? (file.startsWith('product/') ? '/' : '../') : '';
+    assert.ok(read(file).includes(`${prefix}js/track.js`), `${file} does not load the analytics tracker`);
+  }
+  assert.match(read('admin/dashboard.html'), /href="analytics\.html"/, 'the admin dashboard does not link to analytics');
+  assert.match(read('js/admin.js'), /recentTraffic/);
+  assert.match(read('admin/analytics.html'), /role !== 'admin'/, 'analytics page must be admin only');
 });
