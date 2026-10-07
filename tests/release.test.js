@@ -6,10 +6,10 @@ import path from 'node:path';
 const root = process.cwd();
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 
-test('vendor registration creates an active vendor immediately', () => {
+test('vendor registration creates a pending vendor that an administrator approves', () => {
   const source = read('vendor/register.html');
   assert.match(source, /role:'vendor'/);
-  assert.match(source, /status:'ACTIVE'/);
+  assert.match(source, /status:'PENDING'/);
   assert.match(source, /updates\[`users\//);
   assert.match(source, /updates\[`vendors\//);
   assert.doesNotMatch(source, /vendor_applications/);

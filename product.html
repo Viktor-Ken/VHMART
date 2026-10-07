@@ -13,7 +13,7 @@ import { getProductById, formatPrice, text } from './js/marketplace.js';
 // after the product itself is on screen instead of before it.
 async function loadVendor(vendorId) {
   const [{ database }, { get, ref }] = await Promise.all([
-    import('./js/firebase.js'),
+    import('./js/firebase-db.js'),
     import('https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js')
   ]);
   return (await get(ref(database, `vendors/${vendorId}`))).val();

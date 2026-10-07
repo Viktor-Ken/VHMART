@@ -5,7 +5,7 @@
 // "Loading products...".
 async function loadFirebase() {
     const [{ database }, db] = await Promise.all([
-        import("./firebase.js"),
+        import("./firebase-db.js"),
         import("https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js")
     ]);
     return { database, ...db };

@@ -20,7 +20,7 @@ The web API key is a Firebase client identifier, not an authorization mechanism.
 Traffic is measured without any third-party script, so no visitor data leaves the Firebase project.
 
 - `js/track.js` is loaded on every page except `account-deleted.html`, `admin/login.html`, `admin/categories.html` and `vendor/deleted.html`. Sign-in and dead-end pages are deliberately not counted.
-- `js/analytics.js` records a daily view counter, a unique-visitor flag per day, and a `page_views` log entry containing the path, a random visitor id, a coarse device class and the referrer. No IP address, no fingerprint, no email.
+- `js/track.js` records a daily view counter (a server-side increment), a unique-visitor flag per day, and a `page_views` log entry containing the path, a random visitor id, a coarse device class and the referrer, over plain HTTPS to the Realtime Database REST endpoint, so an ordinary page view downloads no Firebase SDK. No IP address, no fingerprint, no email. `js/analytics.js` only reads the totals back for the admin pages.
 - Bots are filtered by user agent, and asset paths are ignored, so the counts reflect people rather than crawlers.
 
 Read it at `/admin/analytics.html`, which plots views and unique visitors for the last 30 days. Only an admin can open that page.
