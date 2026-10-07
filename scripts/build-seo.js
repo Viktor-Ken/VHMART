@@ -233,7 +233,7 @@ ${imageUrl ? `<meta name="twitter:image" content="${escapeXml(absolute(imageUrl)
 <main class="page">
 <a href="/marketplace">Back to marketplace</a>
 <article class="detail">
-${imageUrl ? `  <img src="/${escapeXml(imageUrl)}" alt="${escapeXml(title)}" width="600" height="600" loading="lazy" decoding="async">` : ''}
+${imageUrl ? `  <img src="/${escapeXml(imageUrl)}" alt="${escapeXml(title)}" width="600" height="600" fetchpriority="high" decoding="async">` : ''}
   <div>
     <h1>${escapeXml(title)}</h1>
     <p class="product-price">${price ? escapeXml(`₦${price}`) : 'Contact vendor for price'}</p>
