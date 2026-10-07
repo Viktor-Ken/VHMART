@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Accounts | VHMART</title><meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="../css/main.css"></head>
+<body><main class="page">
+<nav class="nav"><a class="brand" href="dashboard.html">VHMART admin</a><a href="vendors.html">Vendors</a><a href="products.html">Products</a><a href="accounts.html">Accounts</a><a href="analytics.html">Analytics</a><button id="logout" type="button">Sign out</button></nav>
+<h1>Accounts</h1>
+<p>Every registered account, customers and vendors together, including suspended and deleted ones. Suspending or deleting an account signs that person out and stops them signing in again; the record is kept so you can restore it.</p>
+<div id="counts" class="category-grid"><p class="empty">Loading accounts...</p></div>
+<div class="button-row" id="filters" style="margin:16px 0">
+  <button type="button" class="button button--primary" data-filter="all">All</button>
+  <button type="button" class="button button--quiet" data-filter="customer">Customers</button>
+  <button type="button" class="button button--quiet" data-filter="vendor">Vendors</button>
+  <button type="button" class="button button--quiet" data-filter="suspended">Suspended</button>
+  <button type="button" class="button button--quiet" data-filter="deleted">Deleted</button>
+</div>
+<label for="search">Search by name, email or business<input id="search" type="search" placeholder="Search accounts" autocomplete="off"></label>
+<div id="list"><p class="empty">Loading accounts...</p></div>
+<p id="message" role="status"></p>
+</main>
+<script type="module">
+import { requireUser, logout } from '../js/auth.js';
+import { database } from '../js/firebase.js';
+import { get, ref, update, push, query, orderByChild, equalTo, serverTimestamp } from 'https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js';
+
+logout(document.querySelector('#logout'));
+const list = document.querySelector('#list'), counts = document.querySelector('#counts'), message = document.querySelector('#message'), search = document.querySelector('#search');
+let filter = 'all', accounts = [], me = null;
+
+function el(tag, className, text) { const node = document.createElement(tag); if (className) node.className = className; if (text != null) node.textContent = text; return node; }
+const when = (value) => (Number(value) ? new Date(Number(value)).toLocaleDateString('en-NG', { dateStyle: 'medium' }) : 'unknown date');
+const stateOf = (account) => (account.deletedAt ? 'deleted' : account.active === false || account.vendorStatus === 'SUSPENDED' ? 'suspended' : 'active');
+
+async function log(action, target, detail) {
+  try { await update(push(ref(database, 'audit_logs')), { actor: me.uid, action, target, detail: detail || '', timestamp: serverTimestamp() }); } catch (error) { console.warn('Audit log not written:', error); }
+}
+
+// Keeps a vendor's products in step with the vendor: suspending hides the ones that
+// were live, reinstating brings back only those this action hid.
+async function syncProducts(vendorId, suspend) {
+  const snapshot = await get(query(ref(database, 'products'), orderByChild('vendorId'), equalTo(vendorId)));
+  if (!snapshot.exists()) return;
+  for (const [id, product] of Object.entries(snapshot.val())) {
+    if (suspend && product.status === 'PUBLISHED') await update(ref(database, `products/${id}`), { status: 'SUSPENDED', vendorSuspended: true, updatedAt: serverTimestamp() });
+    else if (!suspend && product.status === 'SUSPENDED' && product.vendorSuspended === true) await update(ref(database, `products/${id}`), { status: 'PUBLISHED', vendorSuspended: false, updatedAt: serverTimestamp() });
+  }
+}
+
+// Rules cascade downwards, so each path is written on its own, user record last
+// when reinstating (least access first) and first when suspending.
+async function setState(account, next) {
+  const now = serverTimestamp();
+  const isVendor = account.role === 'vendor';
+  if (next === 'active') {
+    if (isVendor) { await update(ref(database, `vendors/${account.id}`), { status: 'ACTIVE', deletedAt: null, deletedBy: '', updatedAt: now }); await syncProducts(account.id, false); }
+    await update(ref(database, `users/${account.id}`), { active: true, deletedAt: null, deletedBy: '', updatedAt: now });
+  } else {
+    await update(ref(database, `users/${account.id}`), next === 'deleted' ? { active: false, deletedAt: Date.now(), deletedBy: me.uid, updatedAt: now } : { active: false, updatedAt: now });
+    if (isVendor) {
+      await update(ref(database, `vendors/${account.id}`), next === 'deleted' ? { status: 'SUSPENDED', deletedAt: Date.now(), deletedBy: me.uid, updatedAt: now } : { status: 'SUSPENDED', updatedAt: now });
+      await syncProducts(account.id, true);
+    }
+  }
+  await log(`${next === 'active' ? 'reinstate' : next === 'deleted' ? 'delete' : 'suspend'}_user`, account.id, account.email);
+}
+
+function renderCounts() {
+  const n = (test) => accounts.filter(test).length;
+  const items = [['Total accounts', accounts.length], ['Customers', n((a) => a.role === 'customer')], ['Vendors', n((a) => a.role === 'vendor')], ['Suspended', n((a) => stateOf(a) === 'suspended')], ['Deleted', n((a) => stateOf(a) === 'deleted')]];
+  counts.replaceChildren(...items.map(([label, value]) => { const card = el('article', 'category-card'); card.style.backgroundImage = 'linear-gradient(135deg,#176b55,#e76f51)'; card.append(el('h2', null, `${label}: ${value}`)); return card; }));
+}
+
+function matches(account) {
+  const state = stateOf(account);
+  if (filter === 'customer' && account.role !== 'customer') return false;
+  if (filter === 'vendor' && account.role !== 'vendor') return false;
+  if ((filter === 'suspended' || filter === 'deleted') && state !== filter) return false;
+  const needle = search.value.trim().toLowerCase();
+  return !needle || [account.name, account.email, account.businessName, account.phone].some((v) => String(v || '').toLowerCase().includes(needle));
+}
+
+function renderList() {
+  const rows = accounts.filter(matches);
+  list.replaceChildren();
+  if (!rows.length) { list.append(el('p', 'empty', accounts.length ? 'No accounts match this view.' : 'No accounts registered yet.')); return; }
+  for (const account of rows) {
+    const state = stateOf(account);
+    const card = el('article', 'form-panel');
+    card.append(el('h2', null, account.role === 'vendor' && account.businessName ? `${account.businessName}` : (account.name || account.email || 'Account')));
+    const bits = [account.role === 'vendor' ? 'Vendor' : 'Customer', state === 'active' ? 'Active' : state === 'suspended' ? 'Suspended' : 'Deleted'];
+    if (account.role === 'vendor' && account.name) bits.push(`Contact: ${account.name}`);
+    card.append(el('p', null, bits.join(' · ')));
+    if (account.email) card.append(el('p', null, `Email: ${account.email}`));
+    if (account.phone) card.append(el('p', null, `Phone: ${account.phone}`));
+    card.append(el('p', null, `Registered: ${when(account.createdAt)}${account.deletedAt ? ` · Deleted: ${when(account.deletedAt)}` : ''}`));
+    const actions = el('div', 'button-row');
+    const run = (label, className, next, confirmText) => {
+      const button = el('button', `button ${className}`, label); button.type = 'button';
+      button.addEventListener('click', async () => {
+        if (confirmText && !window.confirm(confirmText)) return;
+        button.disabled = true; message.textContent = '';
+        try { await setState(account, next); await load(); message.textContent = `${account.email || 'Account'}: done.`; }
+        catch (error) { console.error(error); button.disabled = false; message.textContent = 'That change could not be saved. Please try again.'; message.className = 'error'; }
+      });
+      actions.append(button);
+    };
+    if (state === 'active') {
+      run('Suspend', 'button--quiet', 'suspended', `Suspend ${account.email || 'this account'}? They will be signed out and unable to sign in.`);
+      run('Delete', 'button--danger', 'deleted', `Delete ${account.email || 'this account'}? They will be signed out and hidden from the site. You can restore it later.`);
+    } else if (state === 'suspended') {
+      run('Reinstate', 'button--primary', 'active');
+      run('Delete', 'button--danger', 'deleted', `Delete ${account.email || 'this account'}? You can restore it later.`);
+    } else run('Restore', 'button--primary', 'active');
+    card.append(actions);
+    list.append(card);
+  }
+}
+
+async function load() {
+  const [users, vendors, admins] = await Promise.all([
+    get(ref(database, 'users')),
+    get(ref(database, 'vendors')).catch((error) => { console.warn('Vendors unreadable:', error); return null; }),
+    get(ref(database, 'admins')).catch(() => null)
+  ]);
+  const vendorRecords = vendors && vendors.exists() ? vendors.val() : {};
+  const adminIds = new Set(admins && admins.exists() ? Object.keys(admins.val()) : []);
+  const byId = new Map();
+  for (const [id, user] of Object.entries(users.exists() ? users.val() : {})) byId.set(id, { id, ...user });
+  // A vendor record with no user record still deserves a row.
+  for (const [id, vendor] of Object.entries(vendorRecords)) if (!byId.has(id)) byId.set(id, { id, role: 'vendor', name: vendor.contactName, email: vendor.email, createdAt: vendor.createdAt, active: vendor.status === 'ACTIVE' });
+  accounts = [...byId.values()].filter((a) => a.role !== 'admin' && !adminIds.has(a.id) && String(a.email || '').toLowerCase() !== 'admin@vhmart.com').map((a) => {
+    const vendor = vendorRecords[a.id];
+    return { ...a, role: a.role === 'vendor' || vendor ? 'vendor' : 'customer', businessName: vendor && vendor.businessName, phone: vendor && vendor.phone, vendorStatus: vendor && vendor.status, deletedAt: a.deletedAt || (vendor && vendor.deletedAt) || null };
+  }).sort((x, y) => (Number(y.createdAt) || 0) - (Number(x.createdAt) || 0));
+  renderCounts();
+  renderList();
+}
+
+document.querySelectorAll('[data-filter]').forEach((button) => button.addEventListener('click', () => {
+  filter = button.dataset.filter;
+  document.querySelectorAll('[data-filter]').forEach((other) => { other.className = `button ${other === button ? 'button--primary' : 'button--quiet'}`; });
+  renderList();
+}));
+search.addEventListener('input', renderList);
+
+requireUser(async (user, profile) => {
+  if (profile.role !== 'admin') { location.href = '../index.html'; return; }
+  me = user;
+  try { await load(); } catch (error) {
+    console.error('Accounts load failed:', error);
+    counts.replaceChildren(); list.replaceChildren(el('p', 'error', 'We could not load the accounts. Please refresh and try again.'));
+  }
+}, 'login.html');
+</script><script src="../js/brand-avatar.js"></script><script src="../js/theme.js"></script><script src="../js/track.js"></script></body></html>
