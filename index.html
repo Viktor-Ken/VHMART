@@ -62,5 +62,5 @@
         trigger.addEventListener('click', () => { drawer.classList.add('is-open'); overlay.classList.add('is-open'); drawer.setAttribute('aria-hidden', 'false'); trigger.setAttribute('aria-expanded', 'true'); }); document.querySelector('#drawerClose').addEventListener('click', closeDrawer); overlay.addEventListener('click', closeDrawer);
         const root = document.querySelector('#randomPicks'); try { const products = (await getPublishedProducts()).slice(0, 4); root.replaceChildren(); if (!products.length) { const empty = document.createElement('p'); empty.className = 'live-empty'; empty.textContent = 'No products are available yet.'; root.append(empty); } else products.forEach((product) => root.append(productCard(product))); } catch (error) { root.replaceChildren(); const message = document.createElement('p'); message.className = 'live-error'; message.textContent = 'We could not load products right now. Please try again.'; root.append(message); console.error(error); }
     </script><script src="js/brand-avatar.js"></script><script src="js/theme.js"></script>
-<script src="js/track.js"></script></body>
+<script src="js/session.js"></script><script src="js/track.js"></script></body>
 </html>

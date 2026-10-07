@@ -18,6 +18,14 @@ export function requireUser(onReady, loginPath = '../login.html', onError) {
             // that path is intentionally protected and a denied read must not block normal login.
             const userSnapshot = await get(ref(database, `users/${user.uid}`));
             const userProfile = userSnapshot.val() || {};
+            // A suspended or deleted account (set by an admin) is signed out and sent back
+            // to the sign-in page, which explains why. The administrator is never blocked.
+            if (!isAdminEmail(user) && (userProfile.active === false || userProfile.deletedAt)) {
+                try { localStorage.removeItem('vhmart_session'); } catch (e) { /* private mode */ }
+                await signOut(auth);
+                location.href = `${loginPath}${loginPath.includes('?') ? '&' : '?'}blocked=1`;
+                return;
+            }
             const token = await user.getIdTokenResult();
             const role = isAdminEmail(user)
                 ? 'admin'
@@ -48,9 +56,14 @@ export function requireUser(onReady, loginPath = '../login.html', onError) {
 }
 
 export function logout(button) {
-    button?.addEventListener('click', () => signOut(auth).then(() => {
-        location.href = '../index.html';
-    }));
+    // Always return to the site root, whichever folder the page is in, and forget the
+    // menu hint so the public pages show "Sign in" again straight away.
+    const root = new URL('../', import.meta.url).href;
+    const finish = () => {
+        try { localStorage.removeItem('vhmart_session'); } catch (e) { /* private mode */ }
+        location.href = `${root}index.html`;
+    };
+    button?.addEventListener('click', () => signOut(auth).then(finish, finish));
 }
 
 export function escapeText(value) {
