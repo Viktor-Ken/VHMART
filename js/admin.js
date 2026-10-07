@@ -22,6 +22,7 @@ export function startAdmin() {
       const groups = [
         ['Total vendors', vendors.exists() ? Object.keys(vendors.val()).length : 0],
         ['Active vendors', count(vendors, 'ACTIVE')],
+        ['Pending vendor approvals', count(vendors, 'PENDING')],
         ['Suspended vendors', count(vendors, 'SUSPENDED')],
         ['Total products', products.exists() ? Object.keys(products.val()).length : 0],
         ['Published products', count(products, 'PUBLISHED')],

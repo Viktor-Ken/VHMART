@@ -21,6 +21,10 @@ export function isBlocked(profile) {
 export function watchSession(callback) {
     onAuthStateChanged(auth, async (user) => {
         if (!user) { callback(null); return; }
+        // Save a provisional hint straight away. A sign-in page redirects as soon as it
+        // has signed in, which can be before the profile below has loaded, and the next
+        // page decides from this hint whether it needs to load Firebase at all.
+        try { if (!localStorage.getItem('vhmart_session')) localStorage.setItem('vhmart_session', JSON.stringify({ role: isAdminEmail(user) ? 'admin' : 'customer', name: user.displayName || user.email || '' })); } catch (error) { /* private mode */ }
         let profile = {};
         try { profile = (await get(ref(database, `users/${user.uid}`))).val() || {}; } catch (error) { console.warn('Profile unavailable:', error && error.message); }
         const admin = isAdminEmail(user);
