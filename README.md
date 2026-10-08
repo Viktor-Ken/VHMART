@@ -139,3 +139,7 @@ The hosted admin area uses the dedicated `admin@vhmart.com` account; vendor regi
 
 ## Vendor sign-in setup
 Vendor registration uses Firebase Authentication email/password for the vendor's private dashboard. In the Firebase console, enable Authentication → Sign-in method → Email/Password for the configured project. Vendor approval is not used. A successful registration immediately creates the vendor profile as ACTIVE and the first product as PUBLISHED.
+
+## Developer tools
+
+The deployed site has no npm dependencies, so Cloudflare builds install nothing. Tools only needed on a developer machine (Firebase CLI, admin scripts, rules tests, Playwright) are not in `package.json`; install them on demand with `npm run install:dev-tools`.
