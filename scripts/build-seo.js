@@ -223,6 +223,10 @@ ${imageUrl ? `<meta name="twitter:image" content="${escapeXml(absolute(imageUrl)
 <script type="application/ld+json">${productStructuredData(product, imageUrl, categoryId)}</script>
 <link rel="preload" href="/fonts/DMSans-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/SpaceGrotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="48x48" href="/icons/icon-48.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <link rel="preload" href="/Visuamall/logo.webp" as="image" type="image/webp">
 <link rel="preload" href="/Visuamall/general/bg%202.jpg" as="image">
 <link rel="preload" href="/Visuamall/general/hero.webp" as="image" type="image/webp">
