@@ -58,6 +58,8 @@ async function writeIfChanged(filePath, contents) {
 // run produce a different sitemap even when nothing had changed, and for a
 // category page it was never accurate: the listing changes when one of its
 // products changes, not on whatever day a build happens to run.
+const THEME_INIT = "<script>(function(){try{var t=localStorage.getItem('vhmart-theme');if(t!=='dark'&&t!=='light')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t)}catch(e){}})()</script>";
+
 function lastmodFrom(products, predicate, fallback) {
   let latest = null;
   for (const product of products) {
@@ -223,6 +225,7 @@ ${imageUrl ? `<meta name="twitter:image" content="${escapeXml(absolute(imageUrl)
 <script type="application/ld+json">${productStructuredData(product, imageUrl, categoryId)}</script>
 <link rel="preload" href="/fonts/DMSans-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/SpaceGrotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
+${THEME_INIT}
 <link rel="icon" href="/favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="48x48" href="/icons/icon-48.png">
 <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
