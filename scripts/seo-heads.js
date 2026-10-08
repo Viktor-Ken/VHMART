@@ -151,7 +151,7 @@ function organisationJsonLd() {
     '@type': 'Organization',
     name: SITE_NAME,
     url: `${SITE_ORIGIN}/`,
-    logo: `${SITE_ORIGIN}/Visuamall/general/home-removebg-preview.webp`
+    logo: `${SITE_ORIGIN}/icons/logo-500.png`
   };
 }
 
@@ -168,6 +168,12 @@ function buildBlock(config) {
   lines.push(`<title>${escapeHtml(title)}</title>`);
   if (config.description) lines.push(`<meta name="description" content="${escapeHtml(config.description)}">`);
   lines.push(`<link rel="canonical" href="${escapeHtml(url)}">`);
+  // Google shows this icon beside the site name in search results. It looks for
+  // a square image in multiples of 48px, so the PNGs are 48 and 192.
+  lines.push('<link rel="icon" href="/favicon.ico" sizes="any">');
+  lines.push('<link rel="icon" type="image/png" sizes="48x48" href="/icons/icon-48.png">');
+  lines.push('<link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">');
+  lines.push('<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">');
   lines.push(`<meta name="robots" content="${config.noindex ? 'noindex,nofollow' : 'index,follow,max-image-preview:large'}">`);
 
   // The stylesheet references these, but the browser only discovers that after
@@ -216,6 +222,7 @@ const OWNED_TAGS = [
   /<title>[\s\S]*?<\/title>/gi,
   /<meta\s+name="description"\s+content="[^"]*"[^>]*>/gi,
   /<link\s+rel="canonical"\s+href="[^"]*"[^>]*>/gi,
+  /<link\s+rel="(?:icon|shortcut icon|apple-touch-icon)"[^>]*>/gi,
   /<meta\s+name="robots"\s+content="[^"]*"[^>]*>/gi,
   /<meta\s+property="og:(?:type|site_name|title|description|url|image)"[^>]*>/gi,
   /<meta\s+name="twitter:(?:card|title|description|image)"[^>]*>/gi,
