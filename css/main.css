@@ -121,3 +121,11 @@ button, .button { border: 0; border-radius: 6px; cursor: pointer; display: inlin
 .mobile-drawer .session-signout { justify-content: flex-start; font-size: 1rem; padding: 12px 0; }
 [data-theme="dark"] .session-signout:hover { background: #1b2724; }
 [hidden] { display: none !important; }
+
+/* Light and dark follow the device; native controls and scrollbars match. */
+:root { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
+/* These sit on pastel or photo backgrounds that stay light in both modes, so their text stays dark. */
+.arrival-hero, .spotlight-card { color: #171717; }
+[data-theme="dark"] .live-heading a, [data-theme="dark"] .benefits b { color: #c9a6ee; }
+[data-theme="dark"] .benefits p { color: var(--muted); }

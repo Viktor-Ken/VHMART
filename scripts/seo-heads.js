@@ -145,6 +145,8 @@ function breadcrumbJsonLd(items) {
   };
 }
 
+const THEME_INIT = "<script>(function(){try{var t=localStorage.getItem('vhmart-theme');if(t!=='dark'&&t!=='light')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t)}catch(e){}})()</script>";
+
 function organisationJsonLd() {
   return {
     '@context': 'https://schema.org',
@@ -170,6 +172,9 @@ function buildBlock(config) {
   lines.push(`<link rel="canonical" href="${escapeHtml(url)}">`);
   // Google shows this icon beside the site name in search results. It looks for
   // a square image in multiples of 48px, so the PNGs are 48 and 192.
+  // Sets light or dark before the first paint, from the visitor's saved choice
+  // or else their device setting, so the page never flashes the wrong colours.
+  lines.push(THEME_INIT);
   lines.push('<link rel="icon" href="/favicon.ico" sizes="any">');
   lines.push('<link rel="icon" type="image/png" sizes="48x48" href="/icons/icon-48.png">');
   lines.push('<link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">');
@@ -222,6 +227,7 @@ const OWNED_TAGS = [
   /<title>[\s\S]*?<\/title>/gi,
   /<meta\s+name="description"\s+content="[^"]*"[^>]*>/gi,
   /<link\s+rel="canonical"\s+href="[^"]*"[^>]*>/gi,
+  /<script>\(function\(\)\{try\{var t=localStorage\.getItem\('vhmart-theme'\)[\s\S]*?<\/script>/gi,
   /<link\s+rel="(?:icon|shortcut icon|apple-touch-icon)"[^>]*>/gi,
   /<meta\s+name="robots"\s+content="[^"]*"[^>]*>/gi,
   /<meta\s+property="og:(?:type|site_name|title|description|url|image)"[^>]*>/gi,
