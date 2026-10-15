@@ -48,7 +48,12 @@
         if (IGNORED.some(function (prefix) { return route.indexOf(prefix) === 0; })) return;
         if (BOT.test(navigator.userAgent || '')) return;
 
-        var day = new Date().toISOString().slice(0, 10);
+        var day;
+        try {
+            // London calendar day, so the daily counters reset at London midnight.
+            day = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+        } catch (e) { day = new Date().toISOString().slice(0, 10); }
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) day = new Date().toISOString().slice(0, 10);
         var id = visitorId();
         // Unique visitor: a blind write to a visitor-keyed path is idempotent.
         // Views: the server adds one itself, so two simultaneous visitors cannot overwrite each other.
