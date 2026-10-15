@@ -216,3 +216,13 @@ button, .button { border: 0; border-radius: 6px; cursor: pointer; display: inlin
   .arrival-hero { min-height: 455px; }
   .arrival-hero > img { width: 84%; }
 }
+
+/* Narrow phones (320-400px): the home header must fit, or the phone zooms the whole page out */
+@media (max-width: 480px) {
+  .live-nav { gap: 10px; }
+  .live-logo { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 1.05rem; }
+  .live-nav .brand-avatar { flex: none; width: 38px; height: 38px; min-height: 38px; }
+  .live-nav .theme-toggle { flex: none; width: 38px; min-height: 38px; margin-left: 0; }
+  .menu-trigger { flex: none; }
+}
+body { overflow-x: clip; }
