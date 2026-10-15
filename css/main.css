@@ -204,3 +204,15 @@ button, .button { border: 0; border-radius: 6px; cursor: pointer; display: inlin
 .category-card h2 { position: relative; color: #fff; margin: 0; font: 700 1.3rem 'Space Grotesk', sans-serif; min-width: 0; flex: 1; overflow-wrap: anywhere; text-shadow: 0 1px 6px rgba(0,0,0,.6); }
 @media (max-width: 767px) { .category-card h2 { font-size: 1.1rem; } }
 @media (max-width: 1024px) { .nav { flex-wrap: wrap; gap: 10px 20px; } }
+
+/* Hero photo: sits on the bottom edge of the banner at every width */
+.arrival-hero > img { margin-bottom: -28px; }
+@media (max-width: 800px) {
+  .arrival-hero { min-height: 430px; align-items: start; }
+  .arrival-copy { position: relative; z-index: 1; }
+  .arrival-hero > img { position: absolute; right: 0; bottom: 0; margin: 0; width: 58%; height: auto; max-height: 92%; }
+}
+@media (max-width: 480px) {
+  .arrival-hero { min-height: 455px; }
+  .arrival-hero > img { width: 84%; }
+}
