@@ -226,3 +226,5 @@ button, .button { border: 0; border-radius: 6px; cursor: pointer; display: inlin
   .menu-trigger { flex: none; }
 }
 body { overflow-x: clip; }
+
+.drawer-close { min-width: 44px; min-height: 44px; }

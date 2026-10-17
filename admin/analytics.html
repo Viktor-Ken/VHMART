@@ -13,12 +13,12 @@
 <p id="clock" class="chart-clock" role="status"></p>
 <h2>Traffic</h2>
 <div id="chart" class="form-panel"><p class="empty">Loading chart...</p></div>
-<div class="form-panel" style="margin-top:16px"><h2>Top pages</h2><div id="pages"><p class="empty">Loading...</p></div></div>
+<div class="form-panel" style="margin-top:16px"><h2>Top pages</h2><p class="chart-note">Based on the most recent 1,000 page views.</p><div id="pages"><p class="empty">Loading...</p></div></div>
 </main>
 <script type="module">
 import { requireUser } from '../js/auth.js';
 import { database } from '../js/firebase.js';
-import { get, ref } from 'https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js';
+import { get, ref, query, limitToLast } from 'https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js';
 import { recentTraffic, londonDay, londonClock } from '../js/analytics.js';
 import { barChart } from '../js/traffic-chart.js';
 
@@ -62,7 +62,7 @@ async function load() {
     );
     barChart(series);
 
-    const snapshot = await get(ref(database, 'analytics/page_views'));
+    const snapshot = await get(query(ref(database, 'analytics/page_views'), limitToLast(1000)));
     const counts = new Map();
     if (snapshot.exists()) {
       snapshot.forEach((value) => {
