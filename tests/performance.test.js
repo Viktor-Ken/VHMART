@@ -121,3 +121,19 @@ test('the service worker only handles static assets and never pages, css or scri
   assert.doesNotMatch(sw, /\.html|\/css\/|\/js\//);
   assert.match(sw, /request\.method !== 'GET'/);
 });
+
+test('photo sizing keeps the shape, never enlarges, and counts data-URL bytes', async () => {
+  const { fitWithin, dataUrlBytes, BUDGET_BYTES } = await import('../js/image-compress.js');
+  assert.deepEqual(fitWithin(4000, 3000, 800), { width: 800, height: 600 });
+  assert.deepEqual(fitWithin(3000, 4000, 800), { width: 600, height: 800 });
+  assert.deepEqual(fitWithin(400, 300, 800), { width: 400, height: 300 });
+  assert.equal(dataUrlBytes('data:image/webp;base64,AAAA'), 3);
+  assert.equal(dataUrlBytes('data:image/webp;base64,AAA='), 2);
+  assert.equal(dataUrlBytes('data:image/webp;base64,AA=='), 1);
+  assert.ok(BUDGET_BYTES <= 70 * 1024);
+});
+
+test('vendor photos go through the compressor before they are saved', () => {
+  assert.match(read('js/products.js'), /compressImage\(file\)/);
+  assert.match(read('js/vendor-product-form.js'), /processProductImage\(file\)/);
+});

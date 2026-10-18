@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "check": "node --check js/firebase-app.js && node --check js/firebase-db.js && node --check js/firebase.js && node --check js/auth.js && node --check js/marketplace.js && node --check js/contact-links.js && node --check js/contact-vendor.js && node --check js/enquiries.js && node --check js/analytics.js && node --check js/session-core.js && node --check js/products.js && node --check js/vendor-product-form.js && node --check js/admin.js && node --check js/traffic-chart.js && node --check scripts/migrate-data.js && node --check scripts/validate-migration.js && node --check scripts/migration-report.js && node --check scripts/set-role.js",
+    "check": "node --check js/firebase-app.js && node --check js/firebase-db.js && node --check js/firebase.js && node --check js/auth.js && node --check js/marketplace.js && node --check js/contact-links.js && node --check js/contact-vendor.js && node --check js/enquiries.js && node --check js/analytics.js && node --check js/session-core.js && node --check js/products.js && node --check js/image-compress.js && node --check js/vendor-product-form.js && node --check js/admin.js && node --check js/traffic-chart.js && node --check scripts/migrate-data.js && node --check scripts/validate-migration.js && node --check scripts/migration-report.js && node --check scripts/set-role.js",
     "emulators": "firebase emulators:start",
     "test": "node --test tests/release.test.js tests/contact.test.js tests/performance.test.js",
     "test:rules": "firebase emulators:exec --only database --project demo-vhmart \"node --test tests/rules.test.js\"",
