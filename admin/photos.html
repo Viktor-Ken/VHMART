@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Optimise photos | VHMART</title><meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="../css/main.css"><script>(function(){try{var t=localStorage.getItem('vhmart-theme');if(t!=='dark'&&t!=='light')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t)}catch(e){}})()</script></head>
+<body><main class="page">
+<nav class="nav"><a class="brand" href="dashboard.html">VHMART admin</a><a href="accounts.html">Accounts</a><a href="vendors.html">Vendors</a><a href="products.html">Products</a><a href="photos.html">Photos</a><a href="analytics.html">Analytics</a><button id="logout" type="button">Sign out</button></nav>
+<h1>Optimise product photos</h1>
+<p>Older product photos are large, which slows the site down for customers. This page finds them and shrinks them to the same size new uploads get (800 px wide at most, WebP, about 70 KB). Nothing changes until you press the shrink button, and you must download a backup first.</p>
+<div class="form-panel" style="max-width:none;margin:16px 0">
+  <ol class="photo-steps">
+    <li><button id="scan" type="button" class="button button--primary">1. Scan photos</button></li>
+    <li><button id="backup" type="button" class="button button--quiet" disabled>2. Download backup</button></li>
+    <li><button id="run" type="button" class="button button--primary" disabled>3. Shrink photos</button></li>
+  </ol>
+  <p id="summary" role="status" class="chart-note">Press “Scan photos” to start. Scanning only reads; it changes nothing.</p>
+  <progress id="bar" max="1" value="0" hidden style="width:100%"></progress>
+</div>
+<div id="list"></div>
+<p id="message" role="status"></p>
+</main>
+<script type="module">
+import { requireUser, logout } from '../js/auth.js';
+import { database } from '../js/firebase.js';
+import { get, ref, update } from 'https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js';
+import { compressImage, dataUrlBytes, BUDGET_BYTES } from '../js/image-compress.js';
+
+logout(document.querySelector('#logout'));
+const $ = (s) => document.querySelector(s);
+const scanBtn = $('#scan'), backupBtn = $('#backup'), runBtn = $('#run'), summary = $('#summary'), bar = $('#bar'), list = $('#list'), message = $('#message');
+const LIMIT = 75 * 1024;      // anything bigger than this is shrunk
+const kb = (bytes) => `${Math.round(bytes / 1024)} KB`;
+let candidates = [], allWithImages = [], backedUp = false;
+
+function el(tag, className, text) { const n = document.createElement(tag); if (className) n.className = className; if (text != null) n.textContent = text; return n; }
+
+function showList(rows) {
+  list.replaceChildren();
+  if (!rows.length) return;
+  const table = el('table', 'photo-table');
+  const head = el('tr'); ['Product', 'Now', 'After'].forEach((h) => head.append(el('th', null, h))); table.append(head);
+  rows.forEach((r) => {
+    const tr = el('tr');
+    tr.append(el('td', null, r.name), el('td', null, kb(r.bytes)), el('td', null, r.after == null ? (r.error ? 'failed' : '') : kb(r.after)));
+    if (r.error) tr.title = r.error;
+    table.append(tr);
+  });
+  const wrap = el('div', 'form-panel'); wrap.style.maxWidth = 'none'; wrap.append(table); list.append(wrap);
+}
+
+async function scan() {
+  scanBtn.disabled = true; summary.textContent = 'Reading products…'; message.textContent = '';
+  try {
+    const snapshot = await get(ref(database, 'products'));
+    const rows = [];
+    if (snapshot.exists()) snapshot.forEach((child) => {
+      const p = child.val() || {};
+      if (typeof p.image === 'string' && p.image.startsWith('data:image/')) rows.push({ id: child.key, name: p.name || child.key, image: p.image, bytes: dataUrlBytes(p.image) });
+    });
+    allWithImages = rows;
+    candidates = rows.filter((r) => r.bytes > LIMIT).sort((a, b) => b.bytes - a.bytes);
+    const total = rows.reduce((s, r) => s + r.bytes, 0);
+    const big = candidates.reduce((s, r) => s + r.bytes, 0);
+    summary.textContent = candidates.length
+      ? `${rows.length} products have photos (${kb(total)} in all). ${candidates.length} are over ${kb(LIMIT)} and can be shrunk; together they are ${kb(big)}. Download the backup, then shrink.`
+      : `${rows.length} products have photos (${kb(total)} in all). None is over ${kb(LIMIT)}, so there is nothing to shrink.`;
+    showList(candidates);
+    backupBtn.disabled = !candidates.length; runBtn.disabled = true; backedUp = false;
+  } catch (error) {
+    console.error(error);
+    summary.textContent = 'Could not read the products. Check that you are signed in as admin and try again.';
+  } finally { scanBtn.disabled = false; }
+}
+
+function downloadBackup() {
+  // Every photo that will be replaced, exactly as it is now, so any of them can be put back.
+  const data = Object.fromEntries(candidates.map((r) => [r.id, { name: r.name, image: r.image }]));
+  const blob = new Blob([JSON.stringify({ savedAt: new Date().toISOString(), products: data })], { type: 'application/json' });
+  const a = el('a'); a.href = URL.createObjectURL(blob); a.download = `vhmart-photo-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  backedUp = true; runBtn.disabled = false;
+  summary.textContent = 'Backup downloaded. Keep that file safe, then press “Shrink photos”.';
+}
+
+async function run() {
+  if (!backedUp) return;
+  if (!confirm(`Shrink ${candidates.length} product photos now? The backup you downloaded lets you restore them.`)) return;
+  runBtn.disabled = true; scanBtn.disabled = true; backupBtn.disabled = true; bar.hidden = false; bar.max = candidates.length; bar.value = 0;
+  let saved = 0, done = 0, failed = 0;
+  for (const r of candidates) {
+    try {
+      const blob = await (await fetch(r.image)).blob();
+      const after = await compressImage(new File([blob], 'photo', { type: blob.type }), { budgetBytes: BUDGET_BYTES });
+      const afterBytes = dataUrlBytes(after);
+      // Only replace when it is clearly smaller; never make a photo bigger or lose quality for nothing.
+      if (afterBytes < r.bytes * 0.85) {
+        await update(ref(database, `products/${r.id}`), { image: after });
+        r.after = afterBytes; saved += r.bytes - afterBytes; done += 1;
+      } else { r.after = r.bytes; }
+    } catch (error) { console.error(r.id, error); r.error = String(error.message || error); failed += 1; }
+    bar.value += 1; summary.textContent = `Working… ${bar.value} of ${candidates.length}`;
+  }
+  bar.hidden = true; showList(candidates); scanBtn.disabled = false;
+  summary.textContent = `Done: ${done} photos shrunk, ${kb(saved)} saved${failed ? `, ${failed} failed (hover a row for the reason)` : ''}.`;
+  message.textContent = done ? 'The live site picks the new photos up the next time it is built and deployed. If you do not want to wait, ask for a redeploy or press “Retry deployment” in Cloudflare Pages.' : '';
+}
+
+scanBtn.addEventListener('click', scan);
+backupBtn.addEventListener('click', downloadBackup);
+runBtn.addEventListener('click', run);
+
+requireUser(async (user, profile) => {
+  if (profile.role !== 'admin') { location.href = '../index.html'; return; }
+}, 'login.html');
+</script><script src="../js/brand-avatar.js"></script><script src="../js/theme.js"></script><script src="../js/track.js"></script></body></html>

@@ -228,3 +228,7 @@ button, .button { border: 0; border-radius: 6px; cursor: pointer; display: inlin
 body { overflow-x: clip; }
 
 .drawer-close { min-width: 44px; min-height: 44px; }
+
+.photo-steps { display: flex; flex-wrap: wrap; gap: 10px; list-style: none; margin: 0 0 12px; padding: 0; }
+.photo-table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+.photo-table th, .photo-table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }

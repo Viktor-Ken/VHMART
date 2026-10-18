@@ -137,3 +137,11 @@ test('vendor photos go through the compressor before they are saved', () => {
   assert.match(read('js/products.js'), /compressImage\(file\)/);
   assert.match(read('js/vendor-product-form.js'), /processProductImage\(file\)/);
 });
+
+test('the admin photo tool needs a backup first and writes only the image field', () => {
+  const html = read('admin/photos.html');
+  assert.match(html, /id="run" type="button" class="button button--primary" disabled/);
+  assert.match(html, /if \(!backedUp\) return;/);
+  assert.match(html, /update\(ref\(database, `products\/\$\{r\.id\}`\), \{ image: after \}\)/);
+  assert.match(read('admin/dashboard.html'), /photos\.html/);
+});
