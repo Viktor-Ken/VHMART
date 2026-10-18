@@ -65,9 +65,3 @@ export function logout(button) {
     };
     button?.addEventListener('click', () => signOut(auth).then(finish, finish));
 }
-
-export function escapeText(value) {
-    return String(value ?? '').replace(/[&<>"']/g, (character) => ({
-        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
-    }[character]));
-}
