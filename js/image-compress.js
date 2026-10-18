@@ -7,8 +7,8 @@
 //   be far larger, so the result is checked rather than trusted).
 // - Tries a few quality levels, then a smaller size, until the picture fits the budget.
 
-export const MAX_DIMENSION = 800;
-export const MIN_DIMENSION = 480;
+const MAX_DIMENSION = 800;
+const MIN_DIMENSION = 480;
 export const BUDGET_BYTES = 70 * 1024;
 const QUALITIES = [0.82, 0.72, 0.62, 0.52];
 
