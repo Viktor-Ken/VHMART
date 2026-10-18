@@ -41,6 +41,7 @@ const FORBIDDEN = [
 
 // The site is unusable without these.
 const REQUIRED = [
+  'sw.js',
   'favicon.ico',
   'icons/icon-48.png',
   'icons/icon-192.png',

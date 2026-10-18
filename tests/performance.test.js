@@ -95,3 +95,29 @@ test('new vendors are created pending and an administrator can approve or declin
   const rules = JSON.parse(read('firebase/database.rules.json')).rules.vendors['$id']['.write'];
   assert.match(rules, /newData\.child\('status'\)\.val\(\) === 'PENDING'/, 'rules must let a vendor create only a pending record');
 });
+
+test('only the home page preloads its hero and header pictures', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const home = await readFile('index.html', 'utf8');
+  const login = await readFile('login.html', 'utf8');
+  assert.match(home, /preload" href="\/Visuamall\/general\/hero\.webp"/);
+  assert.doesNotMatch(login, /hero\.webp/);
+  assert.doesNotMatch(login, /bg(-|%20)2/);
+});
+
+test('pages that show products start fetching the catalogue at the top of the page', async () => {
+  const { readFile } = await import('node:fs/promises');
+  for (const page of ['index.html', 'marketplace.html']) {
+    const html = await readFile(page, 'utf8');
+    assert.match(html, /rel="preload" href="\/products\.json" as="fetch" crossorigin/, page);
+    assert.match(html, /rel="modulepreload" href="\/js\/marketplace\.js"/, page);
+  }
+});
+
+test('the service worker only handles static assets and never pages, css or scripts', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const sw = await readFile('sw.js', 'utf8');
+  assert.match(sw, /products\.json/);
+  assert.doesNotMatch(sw, /\.html|\/css\/|\/js\//);
+  assert.match(sw, /request\.method !== 'GET'/);
+});

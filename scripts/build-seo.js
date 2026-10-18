@@ -231,8 +231,6 @@ ${THEME_INIT}
 <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <link rel="preload" href="/Visuamall/logo.webp" as="image" type="image/webp">
-<link rel="preload" href="/Visuamall/general/bg%202.jpg" as="image">
-<link rel="preload" href="/Visuamall/general/hero.webp" as="image" type="image/webp">
 <link rel="stylesheet" href="/css/main.css">
 </head>
 <body class="product-static">

@@ -19,6 +19,7 @@ const DEFAULT_IMAGE = `${SITE_ORIGIN}/Visuamall/general/home-removebg-preview.we
 const PAGES = {
   'index.html': {
     route: '/',
+    preload: ['home', 'products'],
     title: `${SITE_NAME} | Health, Medical Wear & Wellness Products`,
     description: 'Shop scrubs, masks, wellness and fitness products from independent VHMART vendors. Browse by category, view product details and send an enquiry directly to the vendor.',
     image: `${SITE_ORIGIN}/Visuamall/general/home-removebg-preview.webp`,
@@ -35,6 +36,7 @@ const PAGES = {
     }
   },
   'marketplace.html': {
+    preload: ['products'],
     route: '/marketplace',
     title: `Marketplace | ${SITE_NAME}`,
     description: 'Browse every product listed on VHMART: health equipment, wellness, fitness, books and more. Filter by category and contact the vendor directly.',
@@ -71,6 +73,7 @@ const PAGES = {
     description: 'Send an enquiry to a VHMART vendor about one of their products.'
   },
   'random.html': {
+    preload: ['products'],
     route: '/random',
     title: `Random product picks | ${SITE_NAME}`,
     description: 'See randomly selected products from VHMART vendors across health, wellness, fitness and medical equipment.',
@@ -191,12 +194,20 @@ function buildBlock(config) {
   // the fonts had already arrived. It then became the last request to finish
   // before first paint. Preloading states the dependency up front.
   lines.push('<link rel="preload" href="/Visuamall/logo.webp" as="image" type="image/webp">');
-  // The sticky header's background is set in css/main.css, so it is only
-  // discovered once that stylesheet has parsed, by which point the header is
-  // already part of the first paint. These two were the last resources to finish
-  // before first paint at around 1.7s, leaving only a small margin.
-  lines.push('<link rel="preload" href="/Visuamall/general/bg%202.jpg" as="image">');
-  lines.push('<link rel="preload" href="/Visuamall/general/hero.webp" as="image" type="image/webp">');
+  // Only the home page paints the hero background and the header picture, so only it
+  // preloads them. Preloading them everywhere made every page download about 30 KB it
+  // never showed, and those downloads shared the connection with the stylesheet and fonts.
+  const preload = config.preload || [];
+  if (preload.includes('home')) {
+    lines.push('<link rel="preload" href="/Visuamall/general/bg-2.webp" as="image" type="image/webp">');
+    lines.push('<link rel="preload" href="/Visuamall/general/hero.webp" as="image" type="image/webp">');
+  }
+  // The product list waits for js/marketplace.js and then for products.json, one after
+  // the other. Asking for both at the start lets them download alongside the stylesheet.
+  if (preload.includes('products')) {
+    lines.push('<link rel="modulepreload" href="/js/marketplace.js">');
+    lines.push('<link rel="preload" href="/products.json" as="fetch" crossorigin="anonymous">');
+  }
 
   lines.push(`<meta property="og:type" content="website">`);
   lines.push(`<meta property="og:site_name" content="${escapeHtml(SITE_NAME)}">`);

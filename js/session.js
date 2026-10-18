@@ -128,4 +128,12 @@
     }
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+
+    // Background cache for fonts, images and the product list (see /sw.js). Registered
+    // after the page has loaded so it never competes with what the visitor is waiting for.
+    if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+        window.addEventListener('load', function () {
+            navigator.serviceWorker.register('/sw.js').catch(function () { });
+        });
+    }
 })();
