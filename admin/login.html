@@ -38,9 +38,12 @@
       const button = form.querySelector('button[type="submit"]');
       if (email !== ADMIN_EMAIL) {
         message.textContent = 'Use the dedicated administrator email.';
+        window.VHMARTForm?.setError('email', 'This is not the administrator email.');
+        form.email.focus();
         return;
       }
       button.disabled = true;
+      window.VHMARTForm?.clearErrors(form);
       message.textContent = 'Signing in...';
       try {
         await signInWithEmailAndPassword(auth, email, form.password.value);
@@ -48,10 +51,12 @@
       } catch (error) {
         console.error(error);
         message.textContent = 'Admin sign-in failed. Check the password.';
+        window.VHMARTForm?.setError('password', 'Incorrect password. Try again.');
+        form.password.focus();
         button.disabled = false;
       }
     });
   </script>
-<script src="../js/password-toggle.js"></script><script src="../js/brand-avatar.js"></script><script src="../js/theme.js"></script>
+<script src="../js/password-toggle.js"></script><script src="../js/form-validate.js"></script><script src="../js/brand-avatar.js"></script><script src="../js/theme.js"></script>
 </body>
 </html>
