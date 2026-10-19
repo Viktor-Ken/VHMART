@@ -232,3 +232,14 @@ body { overflow-x: clip; }
 .photo-steps { display: flex; flex-wrap: wrap; gap: 10px; list-style: none; margin: 0 0 12px; padding: 0; }
 .photo-table { width: 100%; border-collapse: collapse; font-size: .9rem; }
 .photo-table th, .photo-table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+
+/* Form errors: a field that is empty or wrong is outlined and explained underneath it. */
+.field-error { display: block; margin-top: 6px; color: #b3261e; font-size: .9rem; font-weight: 600; line-height: 1.35; }
+.field-error[hidden] { display: none; }
+.field-error::before { content: "! "; font-weight: 800; }
+input.is-invalid, select.is-invalid, textarea.is-invalid { border-color: #b3261e !important; box-shadow: 0 0 0 3px rgba(179, 38, 30, .18); background-image: none; }
+.password-field:has(.is-invalid) { border-radius: 8px; }
+label.has-error { color: #b3261e; }
+.form-summary-error { color: #b3261e; font-weight: 700; }
+[data-theme="dark"] .field-error, [data-theme="dark"] label.has-error, [data-theme="dark"] .form-summary-error { color: #ff8a80; }
+[data-theme="dark"] input.is-invalid, [data-theme="dark"] select.is-invalid, [data-theme="dark"] textarea.is-invalid { border-color: #ff8a80 !important; box-shadow: 0 0 0 3px rgba(255, 138, 128, .22); }
