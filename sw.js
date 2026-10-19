@@ -1,7 +1,47 @@
 // Keeps fonts, images and the product list on the visitor's device so repeat visits
 // and weak connections feel instant. It never touches pages, stylesheets or scripts,
 // so a release is always picked up normally. Bump CACHE to throw everything away.
-const CACHE = 'vhmart-static-v1';
+const CACHE = 'vhmart-static-v2';
+// Images and the product list are capped: when the cache is full, the ones looked at
+// longest ago are removed first, so it can never grow without limit on a phone.
+importScripts('/js/lru-cache.js');
+const MAX_ENTRIES = 150;
+const ORDER_KEY = '/__recent-order.json';
+const recent = new LRUCache(MAX_ENTRIES, (url) => {
+    caches.open(CACHE).then((cache) => cache.delete(url)).catch(() => {});
+});
+let restored = null;
+
+// The worker can be stopped at any time, so the usage order is saved alongside the files.
+function restoreOrder() {
+    if (!restored) {
+        restored = (async () => {
+            try {
+                const cache = await caches.open(CACHE);
+                const saved = await cache.match(ORDER_KEY);
+                const urls = saved ? await saved.json() : [];
+                for (const url of urls) if (!recent.has(url)) recent.set(url, true);
+            } catch (error) { /* start with an empty order */ }
+        })();
+    }
+    return restored;
+}
+
+async function saveOrder() {
+    try {
+        const cache = await caches.open(CACHE);
+        await cache.put(ORDER_KEY, new Response(JSON.stringify(recent.keys()), { headers: { 'content-type': 'application/json' } }));
+    } catch (error) { /* order is only a hint */ }
+}
+
+async function use(request) {
+    // Fonts are tiny and few, so only images and the product list are counted.
+    const path = new URL(request.url).pathname;
+    if (FONTS.test(path)) return;
+    await restoreOrder();
+    recent.set(request.url, true);
+    await saveOrder();
+}
 const FONTS = /^\/fonts\//;
 const IMAGES = /^\/(Visuamall|icons|product\/thumb)\/|^\/product\/[^/]+\.(jpg|jpeg|png|webp|avif)$/;
 
@@ -21,6 +61,7 @@ async function remember(request, response) {
     if (response && response.status === 200 && response.type === 'basic') {
         const cache = await caches.open(CACHE);
         await cache.put(request, response.clone());
+        await use(request);
     }
     return response;
 }
@@ -37,7 +78,7 @@ async function staleWhileRevalidate(event) {
     const cached = await caches.match(request);
     const refresh = fetch(request).then((response) => remember(request, response)).catch(() => null);
     if (cached) {
-        event.waitUntil(refresh);
+        event.waitUntil(Promise.all([refresh, use(request)]));
         return cached;
     }
     return (await refresh) || Response.error();
