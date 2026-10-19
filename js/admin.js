@@ -48,8 +48,17 @@ export function startAdmin() {
       root.replaceChildren();
       const message = document.createElement('p');
       message.className = 'error';
-      message.textContent = 'We could not load the admin dashboard. Please refresh and try again.';
+      const denied = /permission[_ ]denied/i.test(`${error.code || ''} ${error.message || ''}`);
+      message.textContent = denied
+        ? 'The database refused to show the dashboard to this account. Add an entry for this account under "admins" in the Realtime Database (or remove the "admins" node so the admin email works again). Your account ID is shown below.'
+        : 'We could not load the admin dashboard. Please refresh and try again.';
       root.append(message);
+      if (denied) {
+        const uid = document.createElement('p');
+        uid.className = 'error';
+        uid.textContent = `Account ID: ${user.uid}`;
+        root.append(uid);
+      }
     }
   }, 'login.html');
 }
