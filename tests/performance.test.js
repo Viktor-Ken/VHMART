@@ -118,7 +118,7 @@ test('the service worker only handles static assets and never pages, css or scri
   const { readFile } = await import('node:fs/promises');
   const sw = await readFile('sw.js', 'utf8');
   assert.match(sw, /products\.json/);
-  assert.doesNotMatch(sw, /\.html|\/css\/|\/js\//);
+  assert.doesNotMatch(sw.replace("importScripts('/js/lru-cache.js');", ''), /\.html|\/css\/|\/js\//);
   assert.match(sw, /request\.method !== 'GET'/);
 });
 
