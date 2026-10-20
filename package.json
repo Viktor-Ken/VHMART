@@ -2,10 +2,13 @@
   "name": "vhmart-mvp",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=22.13"
+  },
   "scripts": {
-    "check": "node --check js/firebase-app.js && node --check js/firebase-db.js && node --check js/firebase.js && node --check js/auth.js && node --check js/marketplace.js && node --check js/contact-links.js && node --check js/contact-vendor.js && node --check js/enquiries.js && node --check js/analytics.js && node --check js/session-core.js && node --check js/products.js && node --check js/image-compress.js && node --check js/vendor-product-form.js && node --check js/admin.js && node --check js/traffic-chart.js && node --check js/form-validate.js && node --check js/lru-cache.js && node --check sw.js && node --check scripts/migrate-data.js && node --check scripts/validate-migration.js && node --check scripts/migration-report.js && node --check scripts/set-role.js",
+    "check": "node --check js/firebase-app.js && node --check js/firebase-db.js && node --check js/firebase.js && node --check js/auth.js && node --check js/marketplace.js && node --check js/contact-links.js && node --check js/contact-vendor.js && node --check js/enquiries.js && node --check js/analytics.js && node --check js/session-core.js && node --check js/products.js && node --check js/image-compress.js && node --check js/vendor-product-form.js && node --check js/admin.js && node --check js/traffic-chart.js && node --check js/form-validate.js && node --check js/lru-cache.js && node --check scripts/catalogue-join.js && node --check sw.js && node --check scripts/migrate-data.js && node --check scripts/validate-migration.js && node --check scripts/migration-report.js && node --check scripts/set-role.js",
     "emulators": "firebase emulators:start",
-    "test": "node --test tests/release.test.js tests/contact.test.js tests/performance.test.js tests/form-validation.test.js tests/lru.test.js",
+    "test": "node --test tests/release.test.js tests/contact.test.js tests/performance.test.js tests/form-validation.test.js tests/lru.test.js tests/catalogue-join.test.js",
     "test:rules": "firebase emulators:exec --only database --project demo-vhmart \"node --test tests/rules.test.js\"",
     "test:all": "npm run test && npm run test:rules",
     "migration:dry-run": "node scripts/migrate-data.js --dry-run --input export.json",
