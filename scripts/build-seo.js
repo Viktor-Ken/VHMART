@@ -7,6 +7,7 @@
 import { writeFile, mkdir, readFile, readdir, rm, access } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { joinCatalogue } from './catalogue-join.js';
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const outputPath = path.join(rootDir, 'products.json');
@@ -29,6 +30,27 @@ async function fetchPublishedProducts() {
   return Object.entries(data)
     .map(([id, product]) => ({ id, ...product }))
     .filter((product) => product && product.status === 'PUBLISHED' && product.availability !== 'UNAVAILABLE' && !product.deletedAt);
+}
+
+// Each vendor's public record (a vendor is readable by anyone only while ACTIVE). A refusal
+// or a missing record means the vendor is not active, so its products are left out; a network
+// failure leaves the vendor unknown and the products are kept rather than breaking the build.
+async function fetchVendors(vendorIds) {
+  const vendors = new Map();
+  await Promise.all([...new Set(vendorIds)].filter((id) => /^[A-Za-z0-9_-]{1,120}$/.test(id)).map(async (id) => {
+    try {
+      const response = await fetch(`${databaseURL}/vendors/${encodeURIComponent(id)}.json`, { headers: { Accept: 'application/json' } });
+      if (response.status === 401 || response.status === 403) { vendors.set(id, { status: 'INACTIVE' }); return; }
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const vendor = await response.json();
+      vendors.set(id, vendor && typeof vendor === 'object' && !vendor.deletedAt
+        ? { status: vendor.status, businessName: vendor.businessName }
+        : { status: 'INACTIVE' });
+    } catch (error) {
+      console.warn(`Vendor ${id} could not be checked (${error.message}); keeping its products.`);
+    }
+  }));
+  return vendors;
 }
 
 const escapeXml = (value) => String(value).replace(/[<>&'"]/g, (character) => (
@@ -173,7 +195,7 @@ function productStructuredData(product, imageUrl, categoryId) {
     sku: product.id,
     url: absolute(`product/${product.id}`),
     ...(imageUrl ? { image: [absolute(imageUrl)] } : {}),
-    ...(categoryId ? { category: categoryId } : {}),
+    ...(categoryId ? { category: product.categoryName || categoryId } : {}),
     brand: { '@type': 'Brand', name: SITE_NAME },
     offers: {
       '@type': 'Offer',
@@ -181,7 +203,7 @@ function productStructuredData(product, imageUrl, categoryId) {
       availability: 'https://schema.org/InStock',
       priceCurrency: 'NGN',
       ...(price ? { price } : {}),
-      seller: { '@type': 'Organization', name: SITE_NAME }
+      seller: { '@type': 'Organization', name: product.vendorName || SITE_NAME }
     }
   };
   return JSON.stringify(data);
@@ -202,7 +224,7 @@ async function writeProductPages(products) {
     const url = absolute(`product/${product.id}`);
     const categoryId = product.categoryId || '';
     const vendorLine = product.vendorId
-      ? 'Sold by an independent VHMART vendor. Message the vendor directly to ask about this product.'
+      ? `Sold by ${product.vendorName || 'an independent VHMART vendor'}. Message the vendor directly to ask about this product.`
       : 'Listed on VHMART. Send an enquiry to learn more.';
 
     const html = `<!doctype html>
@@ -243,7 +265,7 @@ ${imageUrl ? `  <img src="/${escapeXml(imageUrl)}" alt="${escapeXml(title)}" wid
     <h1>${escapeXml(title)}</h1>
     <p class="product-price">${price ? escapeXml(`₦${price}`) : 'Contact vendor for price'}</p>
     <p>${escapeXml(product.description || 'Ask the vendor for more information about this product.')}</p>
-    <p><small>${escapeXml([categoryId, product.availability, vendorLine].filter(Boolean).join(' | '))}</small></p>
+    <p><small>${escapeXml([product.categoryName || categoryId, product.availability, vendorLine].filter(Boolean).join(' | '))}</small></p>
     ${product.vendorId ? `<p><a class="button button--primary" href="/vendor-profile?id=${encodeURIComponent(product.vendorId)}&amp;product=${encodeURIComponent(product.id)}">I&rsquo;m interested &ndash; view vendor</a></p>
     <p><small>On the vendor&rsquo;s page you can contact them directly or send an enquiry.</small></p>` : `<p><a href="/contact">Ask about this product</a></p>`}
   </div>
@@ -344,7 +366,12 @@ async function removeStaleProductFiles(pages) {
 }
 
 try {
-  const products = await fetchPublishedProducts();
+  const published = await fetchPublishedProducts();
+  const vendors = await fetchVendors(published.map((product) => product.vendorId).filter(Boolean));
+  // One SQL join attaches each product's vendor and category name and drops products
+  // belonging to vendors that are not active.
+  const products = joinCatalogue(published, vendors);
+  if (products.length !== published.length) console.log(`Left out ${published.length - products.length} product(s) whose vendor is not active.`);
 
   // Pages first: writing a page extracts the product's base64 image into a real file
   // under product/, and the snapshot below points at that file.
