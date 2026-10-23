@@ -693,3 +693,61 @@ test('a contact enquiry must name a real channel and record the terms acceptance
       'one customer must not be able to edit another profile'
     );
   });
+
+test('a favourite is a plain flag, scoped to its own owner', async () => {
+  await fresh();
+  const customer = asUser('customer1', 'casey@example.com');
+
+  await assertSucceeds(customer.ref('favourites/customer1/prod1').set(true), 'marking a product as a favourite must work');
+  await assertFails(customer.ref('favourites/customer1/prod2').set('yes'), 'a favourite must be the boolean true, not an arbitrary value');
+  await assertFails(customer.ref('favourites/customer1/prod3').set({ note: 'x'.repeat(5000) }), 'a favourite must not carry an arbitrary blob');
+  await assertFails(
+    asUser('customer2', 'mallory@example.com').ref('favourites/customer1/prod1').set(true),
+    'one customer must not write another customer\'s favourites'
+  );
+});
+
+test('an anonymous unique-visitor write is capped to a reasonably short visitor id', async () => {
+  await fresh();
+  const short = 'v'.repeat(64);
+  const long = 'v'.repeat(65);
+  await assertSucceeds(asGuest().ref(`analytics/unique/${day}/${short}`).set(true), 'a 64-character visitor id must still be accepted');
+  await assertFails(asGuest().ref(`analytics/unique/${day}/${long}`).set(true), 'an oversized, attacker-chosen visitor id must be rejected');
+});
+
+test('a product write is capped in size: name, description and image path', async () => {
+  await fresh();
+  const vendor = asUser('vendor1', 'vic@example.com');
+  const base = { ownerUid: 'vendor1', vendorId: 'vendor1', categoryId: 'general', status: 'PUBLISHED' };
+
+  await assertSucceeds(vendor.ref('products/p1').set({ ...base, name: 'Normal name' }));
+  await assertFails(vendor.ref('products/p2').set({ ...base, name: 'x'.repeat(121) }), 'an oversized product name must be rejected');
+  await assertFails(
+    vendor.ref('products/p3').set({ ...base, name: 'Item', description: 'x'.repeat(3001) }),
+    'an oversized description must be rejected'
+  );
+  await assertFails(
+    vendor.ref('products/p4').set({ ...base, name: 'Item', image: 'https://example.com/' + 'x'.repeat(300) }),
+    'an oversized image path must be rejected (it must be a short path, not an embedded image)'
+  );
+});
+
+test('the vendor_enquiries mirror a customer writes is shape-checked like the real enquiry', async () => {
+  await fresh();
+  await seed({ 'products/p1': { ownerUid: 'vendor1', vendorId: 'vendor1', name: 'Scrubs', categoryId: 'general', status: 'PUBLISHED' } });
+  const customer = asUser('customer1', 'casey@example.com');
+
+  await assertSucceeds(customer.ref('vendor_enquiries/vendor1/e1').set({
+    productId: 'p1', vendorId: 'vendor1', customerUid: 'customer1', status: 'NEW', message: 'Hello'
+  }));
+  await assertFails(
+    customer.ref('vendor_enquiries/vendor1/e2').set({
+      productId: 'p1', vendorId: 'vendor1', customerUid: 'customer1', status: 'NEW', message: 'x'.repeat(2001)
+    }),
+    'an oversized message in the mirror must be rejected just like the real enquiry'
+  );
+  await assertFails(
+    customer.ref('vendor_enquiries/vendor1/e3').set({ vendorId: 'vendor1', customerUid: 'customer1', status: 'NEW' }),
+    'a mirror entry missing required fields must be rejected'
+  );
+});
