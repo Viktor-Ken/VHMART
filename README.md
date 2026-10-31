@@ -13,7 +13,16 @@ The current static HTML architecture is retained. Shared browser modules live in
 3. Deploy rules with `firebase deploy --only database,storage` after installing and logging into the Firebase CLI.
 4. Provision admin custom claims and vendor claims with a trusted Admin SDK process. Never set these claims from browser code.
 
-The web API key is a Firebase client identifier, not an authorization mechanism. Access control is enforced by rules and claims.
+The web API key is a Firebase client identifier, not an authorization mechanism. Every Firebase web app ships this value to the browser by design — the Firebase SDK cannot start without it, and there is no way to keep it out of the frontend. It does not grant access to any data by itself; access control is enforced entirely by `firebase/database.rules.json` and custom claims, which is why those are the hardened boundary, not the key.
+
+GitHub's secret scanning will still flag it as a "Google API Key" because the string matches that pattern. To close that alert properly:
+
+1. In [Google Cloud Console](https://console.cloud.google.com/apis/credentials) (same project as Firebase), open this key's settings.
+2. Under **Application restrictions**, choose **Websites** and add `vhmart.online/*` (and any other domain that legitimately serves this site). This stops the key working at all from any other site, even if it is copied.
+3. Under **API restrictions**, limit it to only the Firebase/Identity Platform APIs this project actually calls. This stops it being used for unrelated Google Cloud APIs on your billing account.
+4. Back on GitHub, open the alert under **Security → Secret scanning alerts** and dismiss it as **Won't fix**, with a note that it is a restricted Firebase client key, not a credential.
+
+This is the real fix: restricting the key, not removing it from the code, because removing it would stop the site from loading Firebase at all.
 
 ## Analytics
 

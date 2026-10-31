@@ -42,14 +42,31 @@
         form.email.focus();
         return;
       }
+      const lock = window.VHMARTLockout?.create(email);
+      const waiting = lock?.secondsLeft();
+      if (waiting) {
+        window.VHMARTLockout.countdown(button, message, waiting, (s) => `Too many attempts. Try again in ${s}s.`);
+        return;
+      }
       button.disabled = true;
       window.VHMARTForm?.clearErrors(form);
       message.textContent = 'Signing in...';
       try {
         await signInWithEmailAndPassword(auth, email, form.password.value);
+        lock?.recordSuccess();
         location.href = 'dashboard.html';
       } catch (error) {
         console.error(error);
+        if (error.code === 'auth/too-many-requests') {
+          message.textContent = 'Too many attempts. Please wait and try again.';
+          button.disabled = false;
+          return;
+        }
+        const wait = lock?.recordFailure();
+        if (wait) {
+          window.VHMARTLockout.countdown(button, message, wait, (s) => `Too many attempts. Try again in ${s}s.`);
+          return;
+        }
         message.textContent = 'Admin sign-in failed. Check the password.';
         window.VHMARTForm?.setError('password', 'Incorrect password. Try again.');
         form.password.focus();
@@ -57,6 +74,6 @@
       }
     });
   </script>
-<script src="../js/password-toggle.js"></script><script src="../js/form-validate.js"></script><script src="../js/brand-avatar.js"></script><script src="../js/theme.js"></script>
+<script src="../js/login-lockout.js"></script><script src="../js/password-toggle.js"></script><script src="../js/form-validate.js"></script><script src="../js/brand-avatar.js"></script><script src="../js/theme.js"></script>
 </body>
 </html>
