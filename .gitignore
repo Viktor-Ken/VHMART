@@ -21,7 +21,7 @@ MIGRATION_GUIDE.md
 # OS / editor noise
 .DS_Store
 Thumbs.db
-# Local Claude Code tooling (skills, etc.) — not part of the site
+# Local coding-assistant tooling (skills, etc.) — not part of the site
 .claude/
 
 # Local Netlify folder
